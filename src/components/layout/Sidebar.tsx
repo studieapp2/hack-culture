@@ -15,7 +15,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onCloseMobile }: SidebarProps) {
-  const { activePage, navigateTo, settings, refreshHealth, refreshRuns, loadingHealth } = useApp();
+  const { activePage, navigateTo, settings, refreshHealth, refreshRuns, loadingHealth, loadingRuns } = useApp();
 
   const handleNav = (page: NavigationPage) => {
     navigateTo(page);
@@ -56,6 +56,7 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
           return (
             <button
               key={item.id}
+              aria-current={isActive ? 'page' : undefined}
               onClick={() => handleNav(item.id)}
               className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap text-left ${
                 isActive
@@ -81,6 +82,7 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
         </div>
 
         <button
+          aria-current={activePage === 'settings' ? 'page' : undefined}
           onClick={() => handleNav('settings')}
           className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap text-left ${
             activePage === 'settings'
@@ -104,7 +106,7 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
             refreshHealth();
             refreshRuns();
           }}
-          disabled={loadingHealth}
+          disabled={loadingHealth || loadingRuns}
           className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 text-[11px] font-medium text-[#66736F] hover:text-[#17201D] hover:bg-white rounded border border-[#E3EAE6] transition-colors"
           title="Refresh server status"
         >

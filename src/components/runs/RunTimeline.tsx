@@ -34,8 +34,8 @@ export function RunTimeline({
 
       <div className="space-y-3">
         {steps.map((step, idx) => {
-          const isDone = step.status === 'completed' || (!isProcessing && idx <= currentStepIndex);
-          const isActive = step.status === 'active' || (isProcessing && idx === currentStepIndex);
+          const isDone = step.status === 'completed';
+          const isActive = step.status === 'active';
           const isFailed = step.status === 'failed';
           const isPending = !isDone && !isActive && !isFailed;
 
@@ -100,6 +100,9 @@ export function RunTimeline({
                   <p className="text-[11px] text-[#66736F] mt-0.5">
                     {step.description}
                   </p>
+                )}
+                {step.status === 'skipped' && (
+                  <p className="text-[11px] text-[#66736F] mt-0.5">Not performed</p>
                 )}
               </div>
             </div>

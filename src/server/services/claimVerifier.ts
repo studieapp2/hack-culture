@@ -1,13 +1,15 @@
 import { ExtractedClaim, VerifiedSource, ClaimVerificationStatus } from '../types';
 import { tavilyService } from './tavilyService';
 import { bifrostService } from './bifrostService';
+import { RunBudget } from './runBudget';
+import { serverConfig } from '../config';
 
 export class ClaimVerifier {
   /**
    * Builds a concise, focused search query from a technical claim
    */
   public buildQuery(claimText: string): string {
-    return claimText
+    return tavilyService.sanitizeQuery(claimText)
       .replace(/[^\w\s\.-]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
@@ -17,14 +19,24 @@ export class ClaimVerifier {
   /**
    * Verifies an individual claim against current Tavily sources
    */
-  public async verifyClaim(claim: ExtractedClaim): Promise<ExtractedClaim> {
+  public async verifyClaim(claim: ExtractedClaim, budget?: RunBudget): Promise<ExtractedClaim> {
     // 1. Build search query
     const query = this.buildQuery(claim.originalText);
 
     let sources: VerifiedSource[] = [];
     try {
+      if (budget && budget.deadlineAt <= Date.now()) {
+        return { ...claim, status: 'ERROR', sources: [],
+          explanation: 'The run deadline was reached before documentation retrieval.' };
+      }
       if (tavilyService.isConfigured()) {
-        sources = await tavilyService.searchSources(query, { maxResults: 3 });
+        if (budget && budget.searchCount >= serverConfig.maxTavilySearchesPerRun) {
+          return { ...claim, status: 'INSUFFICIENT_EVIDENCE', sources: [],
+            explanation: 'The per-run search budget was reached. This claim was not checked.' };
+        }
+        if (budget) budget.searchCount++;
+        sources = await tavilyService.searchSources(query, { maxResults: 3,
+          timeoutMs: budget ? budget.deadlineAt - Date.now() : undefined });
       } else {
         return {
           ...claim,
@@ -55,7 +67,7 @@ export class ClaimVerifier {
     // 2. Evaluate evidence using Bifrost if configured
     if (bifrostService.isConfigured()) {
       try {
-        const evaluation = await this.evaluateWithModel(claim.originalText, sources);
+        const evaluation = await this.evaluateWithModel(claim.originalText, sources, budget);
         return {
           ...claim,
           status: evaluation.status,
@@ -74,7 +86,8 @@ export class ClaimVerifier {
 
   private async evaluateWithModel(
     claimText: string,
-    sources: VerifiedSource[]
+    sources: VerifiedSource[],
+    budget?: RunBudget
   ): Promise<{
     status: ClaimVerificationStatus;
     explanation: string;
@@ -118,12 +131,13 @@ Return valid JSON in this exact structure:
       {
         responseFormat: 'json_object',
         temperature: 0.0,
-        maxTokens: 800
+        maxTokens: 800,
+        runBudget: budget
       }
     );
 
     const json = completion.rawJson;
-    const rawStatus = (json?.status || '').toUpperCase();
+    const rawStatus = typeof json?.status === 'string' ? json.status.toUpperCase() : '';
 
     let status: ClaimVerificationStatus = 'INSUFFICIENT_EVIDENCE';
     if (['VERIFIED', 'OUTDATED', 'INSUFFICIENT_EVIDENCE', 'UNCHECKABLE'].includes(rawStatus)) {
@@ -132,8 +146,8 @@ Return valid JSON in this exact structure:
 
     return {
       status,
-      explanation: json?.explanation || 'Evaluated against retrieved documentation.',
-      suggestedCorrection: json?.suggested_correction || undefined
+      explanation: typeof json?.explanation === 'string' ? json.explanation : 'No valid evidence explanation was returned.',
+      suggestedCorrection: typeof json?.suggested_correction === 'string' ? json.suggested_correction : undefined
     };
   }
 
@@ -141,25 +155,6 @@ Return valid JSON in this exact structure:
     claim: ExtractedClaim,
     sources: VerifiedSource[]
   ): ExtractedClaim {
-    const textLower = claim.originalText.toLowerCase();
-    const allEvidence = sources.map((s) => s.excerpt.toLowerCase()).join(' ');
-
-    const hasDeprecationKeyword =
-      allEvidence.includes('deprecated') ||
-      allEvidence.includes('superseded') ||
-      allEvidence.includes('removed in') ||
-      allEvidence.includes('no longer supported');
-
-    if (hasDeprecationKeyword && (textLower.includes('max_tokens') || textLower.includes('deprecated'))) {
-      return {
-        ...claim,
-        status: 'OUTDATED',
-        explanation: 'Retrieved sources indicate that this parameter or approach is deprecated in modern SDK releases.',
-        suggestedCorrection: 'Check the official migration guide for modern parameter replacements.',
-        sources
-      };
-    }
-
     return {
       ...claim,
       status: 'INSUFFICIENT_EVIDENCE',

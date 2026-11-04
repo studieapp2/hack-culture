@@ -7,7 +7,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onOpenMobileMenu }: TopBarProps) {
-  const { activePage, navigateTo, setDraftError, health, loadingHealth } = useApp();
+  const { activePage, navigateTo, setDraftError, setDraftCode, setDraftFileName, health, loadingHealth } = useApp();
 
   const getPageMeta = () => {
     switch (activePage) {
@@ -40,42 +40,42 @@ export function TopBar({ onOpenMobileMenu }: TopBarProps) {
 
     if (!health || health.status === 'unconfigured') {
       return (
-        <div
+        <button
           onClick={() => navigateTo('settings')}
           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200/80 rounded-md cursor-pointer hover:bg-amber-100/80 transition-colors"
           title="Click to view required credentials in Settings"
         >
           <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-          <span>Integration required</span>
-        </div>
+          <span>{health ? 'Integration required' : 'Server unavailable'}</span>
+        </button>
       );
     }
 
     if (health.status === 'degraded') {
       return (
-        <div
+        <button
           onClick={() => navigateTo('settings')}
           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200/80 rounded-md cursor-pointer hover:bg-amber-100/80 transition-colors"
           title="One or more integrations require configuration"
         >
           <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
           <span>Partial Integration</span>
-        </div>
+        </button>
       );
     }
 
     return (
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#08775E] bg-[#EAF6F0] border border-[#08775E]/20 rounded-md">
         <CheckCircle2 className="w-3.5 h-3.5 text-[#08775E]" />
-        <span>Live System</span>
+        <span>Integrations reachable</span>
       </div>
     );
   };
 
   return (
-    <header className="h-[60px] px-6 bg-white border-b border-[#E3EAE6] flex items-center justify-between gap-4 sticky top-0 z-30">
+    <header className="min-h-[60px] shrink-0 px-3 sm:px-6 bg-white border-b border-[#E3EAE6] flex items-center justify-between gap-2 sm:gap-4 sticky top-0 z-30">
       {/* Left zone: Mobile toggle + Breadcrumb / Title */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <button
           onClick={onOpenMobileMenu}
           className="lg:hidden p-1.5 -ml-1 text-[#66736F] hover:text-[#17201D] hover:bg-[#F8FAF9] rounded-lg transition-colors"
@@ -101,6 +101,8 @@ export function TopBar({ onOpenMobileMenu }: TopBarProps) {
           <button
             onClick={() => {
               setDraftError('');
+              setDraftCode('');
+              setDraftFileName('');
               navigateTo('fix_code');
             }}
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#08775E] hover:bg-[#065E4B] rounded-lg transition-colors shadow-xs cursor-pointer"

@@ -65,7 +65,7 @@ export interface TokenUsage {
 export interface WorkflowStep {
   id: string;
   label: string;
-  status: 'pending' | 'active' | 'completed' | 'failed';
+  status: 'pending' | 'active' | 'completed' | 'failed' | 'skipped';
   description?: string;
 }
 
@@ -78,6 +78,8 @@ export interface Run {
   updatedAt: string;
   errorInput?: string;
   codeInput?: string;
+  fileName?: string;
+  errorMessage?: string;
   answerInput?: string;
   diagnosis?: string;
   steps: WorkflowStep[];

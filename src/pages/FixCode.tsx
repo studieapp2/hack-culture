@@ -35,6 +35,8 @@ export function FixCode() {
     setDraftError,
     draftCode,
     setDraftCode,
+    draftFileName,
+    setDraftFileName,
     refreshRuns,
     approvePatch,
     rejectPatch,
@@ -48,44 +50,52 @@ export function FixCode() {
   // Form inputs
   const [errorInput, setErrorInput] = useState(draftError || '');
   const [codeInput, setCodeInput] = useState(draftCode || '');
-  const [fileName, setFileName] = useState('demo_client.py');
+  const [fileName, setFileName] = useState(draftFileName);
   const [validationError, setValidationError] = useState('');
   const [serverError, setServerError] = useState<string | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
+  const [decisionPending, setDecisionPending] = useState(false);
 
   useEffect(() => {
     if (selectedRunId) {
       const existing = runs.find((r) => r.id === selectedRunId);
-      if (existing) {
+      if (existing?.type === 'code_fix') {
         setActiveRun(existing);
         setWorkflowState('complete');
-        if (existing.claims && existing.claims.length > 0) {
-          setSelectedClaim(existing.claims[0]);
-        }
+        setSelectedClaim((prev) => existing.claims.find((claim) => claim.id === prev?.id) || existing.claims[0] || null);
       }
-    } else if (draftError) {
-      setErrorInput(draftError);
-      if (draftCode) setCodeInput(draftCode);
     }
-  }, [selectedRunId, runs, draftError, draftCode]);
+  }, [selectedRunId, runs]);
 
   const handleLoadSample = () => {
     setErrorInput(SAMPLE_ERROR_INPUT);
     setCodeInput(SAMPLE_CODE_INPUT);
+    setDraftError(SAMPLE_ERROR_INPUT);
+    setDraftCode(SAMPLE_CODE_INPUT);
     setFileName('demo_client.py');
+    setDraftFileName('demo_client.py');
     setValidationError('');
     setServerError(null);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (file) {
-      setFileName(file.name);
+      if (file.size > 100_000) {
+        setServerError('Please upload a text/code file smaller than 100 KB.');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target?.result as string;
+        setFileName(file.name);
+        setDraftFileName(file.name);
         setCodeInput(text);
+        setDraftCode(text);
+        setServerError(null);
       };
+      reader.onerror = () => setServerError('Unable to read this file. Please paste the code instead.');
       reader.readAsText(file);
     }
   };
@@ -104,34 +114,32 @@ export function FixCode() {
       const created = await apiClient.startFixRun({
         error: errorInput,
         code: codeInput,
-        fileName
+        fileName: fileName || undefined
       });
 
-      await refreshRuns();
       setActiveRun(created);
       setSelectedRunId(created.id);
-      if (created.claims && created.claims.length > 0) {
-        setSelectedClaim(created.claims[0]);
-      }
+      setSelectedClaim(created.claims[0] || null);
       setWorkflowState('complete');
+      void refreshRuns();
     } catch (err: any) {
       setServerError(err.message || 'An error occurred during diagnostic analysis.');
       setWorkflowState('input');
+      void refreshRuns();
     }
   };
 
-  const handleApprove = async () => {
-    if (!activeRun) return;
-    await approvePatch(activeRun.id);
-    const updated = await apiClient.getRun(activeRun.id);
-    if (updated) setActiveRun(updated);
-  };
-
-  const handleReject = async () => {
-    if (!activeRun) return;
-    await rejectPatch(activeRun.id);
-    const updated = await apiClient.getRun(activeRun.id);
-    if (updated) setActiveRun(updated);
+  const handleDecision = async (decision: 'approve' | 'reject') => {
+    if (!activeRun || decisionPending || activeRun.status !== 'awaiting_approval') return;
+    setDecisionPending(true);
+    setServerError(null);
+    try {
+      await (decision === 'approve' ? approvePatch(activeRun.id) : rejectPatch(activeRun.id));
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : 'Unable to record the patch decision.');
+    } finally {
+      setDecisionPending(false);
+    }
   };
 
   const handleNewAnalysis = () => {
@@ -141,8 +149,25 @@ export function FixCode() {
     setDraftCode('');
     setErrorInput('');
     setCodeInput('');
+    setFileName('');
+    setDraftFileName('');
+    setValidationError('');
+    setSelectedClaim(null);
     setServerError(null);
     setWorkflowState('input');
+  };
+
+  const handleRetry = () => {
+    if (!activeRun) return;
+    const error = activeRun.errorInput || '';
+    const code = activeRun.codeInput || '';
+    const name = activeRun.fileName || activeRun.patch?.filePath || '';
+    setDraftError(error); setErrorInput(error);
+    setDraftCode(code); setCodeInput(code);
+    setDraftFileName(name); setFileName(name);
+    setSelectedRunId(null); setActiveRun(null);
+    setServerError(null); setValidationError('');
+    setSelectedClaim(null); setWorkflowState('input');
   };
 
   return (
@@ -174,12 +199,15 @@ export function FixCode() {
         )}
       </div>
 
-      {serverError && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-3">
+      {(serverError || activeRun?.errorMessage) && (
+        <div role="alert" className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-3">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <span className="font-semibold block mb-0.5">Operation Notice:</span>
-            <span>{serverError}</span>
+            <span>{serverError || activeRun?.errorMessage}</span>
+            {activeRun?.status === 'failed' && (
+              <button onClick={handleRetry} className="block mt-2 font-semibold underline">Retry analysis</button>
+            )}
           </div>
         </div>
       )}
@@ -204,13 +232,17 @@ export function FixCode() {
 
             {/* Input 1: Error / stack trace */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-[#17201D]">
+              <label htmlFor="error-input" className="block text-xs font-semibold text-[#17201D]">
                 1. Error or Stack Trace <span className="text-rose-600">*</span>
               </label>
               <textarea
+                id="error-input"
+                aria-invalid={!!validationError}
+                aria-describedby={validationError ? 'error-validation' : undefined}
                 value={errorInput}
                 onChange={(e) => {
                   setErrorInput(e.target.value);
+                  setDraftError(e.target.value);
                   if (validationError) setValidationError('');
                 }}
                 rows={4}
@@ -218,14 +250,14 @@ export function FixCode() {
                 className="w-full text-xs font-mono text-[#17201D] bg-[#F8FAF9] border border-[#E3EAE6] rounded-xl p-3.5 focus:outline-hidden focus:ring-2 focus:ring-[#08775E] focus:bg-white transition-all leading-relaxed"
               />
               {validationError && (
-                <p className="text-xs text-rose-600 font-medium">{validationError}</p>
+                <p id="error-validation" role="alert" className="text-xs text-rose-600 font-medium">{validationError}</p>
               )}
             </div>
 
             {/* Input 2: Relevant Code & File upload */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold text-[#17201D]">
+                <label htmlFor="code-input" className="block text-xs font-semibold text-[#17201D]">
                   2. Relevant Code Context <span className="text-[#66736F] font-normal">(Optional)</span>
                 </label>
                 <div className="relative">
@@ -250,13 +282,17 @@ export function FixCode() {
                 <div className="flex items-center justify-between px-3 py-1.5 bg-[#101816] rounded-t-xl text-[11px] font-mono text-[#E3EAE6] border-b border-slate-800">
                   <span className="flex items-center gap-1.5 text-slate-300">
                     <FileCode className="w-3.5 h-3.5 text-[#08775E]" />
-                    {fileName}
+                    {fileName || 'Untitled snippet'}
                   </span>
                   <span className="text-slate-500">Local context buffer</span>
                 </div>
                 <textarea
+                  id="code-input"
                   value={codeInput}
-                  onChange={(e) => setCodeInput(e.target.value)}
+                  onChange={(e) => {
+                    setCodeInput(e.target.value);
+                    setDraftCode(e.target.value);
+                  }}
                   rows={8}
                   placeholder="# Paste code snippet or upload a file..."
                   className="w-full text-xs font-mono text-[#E3EAE6] bg-[#101816] rounded-b-xl p-3.5 focus:outline-hidden focus:ring-2 focus:ring-[#08775E] transition-all leading-relaxed"
@@ -300,7 +336,7 @@ export function FixCode() {
               { id: '2', label: 'Identifying relevant claims', status: 'pending', description: 'Querying endpoint contract' },
               { id: '3', label: 'Checking technical information', status: 'pending', description: 'Verifying with Tavily' },
               { id: '4', label: 'Preparing minimal patch', status: 'pending', description: 'Generating targeted substitution' },
-              { id: '5', label: 'Reviewing simulated tests', status: 'pending', description: 'Checking AST validity' },
+              { id: '5', label: 'Reviewing test status', status: 'pending', description: 'Reporting available test results' },
               { id: '6', label: 'Ready for approval', status: 'pending', description: 'Packaging for developer sign-off' }
             ]}
             currentStepIndex={0}
@@ -319,11 +355,11 @@ export function FixCode() {
               <div className="flex items-center gap-2 pb-3 mb-3 border-b border-[#E3EAE6]">
                 <div className="w-2 h-2 rounded-full bg-[#08775E]" />
                 <h3 className="text-xs font-semibold text-[#17201D] uppercase tracking-wider">
-                  Root Cause Identified
+                  {activeRun.status === 'failed' ? 'Analysis Failed' : 'Diagnosis'}
                 </h3>
               </div>
               <p className="text-sm text-[#17201D] leading-relaxed font-medium">
-                {activeRun.diagnosis || 'Analysis completed.'}
+                {activeRun.diagnosis || (activeRun.status === 'failed' ? 'The analysis failed. Start a new analysis to retry.' : 'No diagnosis was returned.')}
               </p>
             </div>
 
@@ -380,7 +416,7 @@ export function FixCode() {
                   </h3>
                 </div>
                 <span className="text-[11px] font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                  Not run
+                  {activeRun.tests.some((test) => test.status === 'failed') ? 'Failed' : activeRun.tests.some((test) => test.status === 'passed') ? 'Results available' : 'Not run'}
                 </span>
               </div>
 
@@ -390,7 +426,7 @@ export function FixCode() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-semibold text-[#17201D]">{test.name}</span>
                       <span className="text-[11px] font-medium text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded">
-                        Not run
+                        {test.status === 'passed' ? 'Passed' : test.status === 'failed' ? 'Failed' : 'Not run'}
                       </span>
                     </div>
                     <p className="text-[11px] text-[#66736F] leading-relaxed">
@@ -407,17 +443,17 @@ export function FixCode() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <h3 className="text-xs font-semibold text-[#17201D] uppercase tracking-wider mb-1">
-                      Human Approval Required
+                      {activeRun.status === 'awaiting_approval' ? 'Human Approval Required' : 'Patch Decision'}
                     </h3>
                     <p className="text-xs text-[#66736F]">
-                      Review this change before applying it. Code changes are not written to repositories without explicit approval.
+                      Approval records your review only; it does not apply code or create a pull request.
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0">
                     <button
-                      onClick={handleReject}
-                      disabled={activeRun.status === 'rejected'}
+                      onClick={() => handleDecision('reject')}
+                      disabled={decisionPending || activeRun.status !== 'awaiting_approval'}
                       className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
                         activeRun.status === 'rejected'
                           ? 'bg-rose-50 text-rose-800 border-rose-200'
@@ -429,8 +465,8 @@ export function FixCode() {
                     </button>
 
                     <button
-                      onClick={handleApprove}
-                      disabled={activeRun.status === 'approved'}
+                      onClick={() => handleDecision('approve')}
+                      disabled={decisionPending || activeRun.status !== 'awaiting_approval'}
                       className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer ${
                         activeRun.status === 'approved'
                           ? 'bg-emerald-600 text-white cursor-default'
@@ -438,7 +474,7 @@ export function FixCode() {
                       }`}
                     >
                       <Check className="w-3.5 h-3.5" />
-                      <span>{activeRun.status === 'approved' ? 'Approved & Ready' : 'Approve patch'}</span>
+                      <span>{activeRun.status === 'approved' ? 'Approved' : decisionPending ? 'Saving…' : 'Approve patch'}</span>
                     </button>
                   </div>
                 </div>

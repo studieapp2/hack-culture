@@ -5,6 +5,9 @@ import { BifrostService } from '../services/bifrostService';
 import { FixCodeService } from '../services/fixCodeService';
 import { RunService } from '../services/runService';
 import { ExtractedClaim, VerifiedSource } from '../types';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 let passed = 0;
 let failed = 0;
@@ -138,7 +141,8 @@ async function runAllTests() {
 
   // Test 10: Approval state transitions are consistent
   console.log('\nGroup 5: State Machine & Execution Isolation');
-  const runTestService = new RunService();
+  const testDataDir = mkdtempSync(path.join(tmpdir(), 'patchpilot-test-'));
+  const runTestService = new RunService(testDataDir);
   const testRun = runTestService.createRun('code_fix', 'Test State Machine', {
     status: 'PATCH_READY',
     patch: {
@@ -163,6 +167,7 @@ async function runAllTests() {
     invalidTransitionCaught = true;
   }
   assert(invalidTransitionCaught, '12. Invalid status transitions are strictly blocked');
+  rmSync(testDataDir, { recursive: true, force: true });
 
   // Test 11 & 12: No actual code executed without an isolated worker (tests are marked 'not_run')
   const defaultTests = [

@@ -13,19 +13,34 @@ import {
 } from 'lucide-react';
 
 export function Settings() {
-  const { settings, updateSettings, health, loadingHealth, refreshHealth } = useApp();
+  const { settings, updateSettings, health, healthError, loadingHealth, refreshHealth } = useApp();
   const [formData, setFormData] = useState<AppSettings>(settings);
   const [savedNotice, setSavedNotice] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleChange = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+    setSavedNotice(false);
+    setSaveError('');
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    updateSettings(formData);
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 2500);
+    setSavedNotice(false);
+    if (!formData.workspaceName.trim()) {
+      setSaveError('Please enter a workspace name.');
+      return;
+    }
+    try {
+      updateSettings({
+        workspaceName: formData.workspaceName.trim(),
+        defaultLandingPage: formData.defaultLandingPage
+      });
+      setSavedNotice(true);
+      setSaveError('');
+    } catch {
+      setSaveError('Unable to save preferences in this browser. Allow local storage and try again.');
+    }
   };
 
   const renderIntegrationBadge = (integration: { configured?: boolean; status?: string }) => {
@@ -36,11 +51,14 @@ export function Settings() {
         </span>
       );
     }
+    if (!health) {
+      return <span className="text-xs text-rose-700">Server unavailable</span>;
+    }
     if (integration?.status === 'connected_and_verified') {
       return (
         <span className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md flex items-center gap-1">
           <Check className="w-3 h-3 text-emerald-600" />
-          <span>Connected & Verified</span>
+          <span>Reachable</span>
         </span>
       );
     }
@@ -75,9 +93,9 @@ export function Settings() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {savedNotice && (
-            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/80 flex items-center gap-1">
+            <span role="status" className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/80 flex items-center gap-1">
               <Check className="w-3.5 h-3.5 text-emerald-600" />
               <span>Preferences saved</span>
             </span>
@@ -92,8 +110,8 @@ export function Settings() {
             <span>Test Health</span>
           </button>
           <button
-            type="button"
-            onClick={handleSave}
+            type="submit"
+            form="preferences-form"
             className="px-4 py-2 text-xs font-semibold text-white bg-[#08775E] hover:bg-[#065E4B] rounded-lg transition-colors shadow-xs cursor-pointer"
           >
             Save Preferences
@@ -101,7 +119,9 @@ export function Settings() {
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
+      {healthError && <p role="alert" className="p-4 rounded-xl bg-rose-50 text-sm text-rose-700 border border-rose-200">{healthError} Use Test Health to retry.</p>}
+      {saveError && <p role="alert" className="p-4 rounded-xl bg-rose-50 text-sm text-rose-700 border border-rose-200">{saveError}</p>}
+      <form id="preferences-form" onSubmit={handleSave} className="space-y-6">
         {/* SECTION A: Integrations Health */}
         <div className="p-6 bg-white border border-[#E3EAE6] rounded-xl shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-[#E3EAE6]">
@@ -172,11 +192,11 @@ export function Settings() {
               <div>
                 <div className="text-xs font-semibold text-[#17201D]">GitHub</div>
                 <div className="text-[11px] text-[#66736F] mt-0.5">
-                  Direct repository integration and automated pull request submission.
+                  Automatic repository patching and pull request submission are not implemented in this app.
                 </div>
               </div>
               <span className="text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md shrink-0">
-                Not connected
+                Not implemented
               </span>
             </div>
           </div>
@@ -197,10 +217,13 @@ export function Settings() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#17201D] mb-1.5">
+              <label htmlFor="workspace-name" className="block text-xs font-semibold text-[#17201D] mb-1.5">
                 Workspace Name
               </label>
               <input
+                id="workspace-name"
+                required
+                maxLength={100}
                 type="text"
                 value={formData.workspaceName}
                 onChange={(e) => handleChange('workspaceName', e.target.value)}
@@ -209,10 +232,11 @@ export function Settings() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#17201D] mb-1.5">
+              <label htmlFor="landing-page" className="block text-xs font-semibold text-[#17201D] mb-1.5">
                 Default Landing Page
               </label>
               <select
+                id="landing-page"
                 value={formData.defaultLandingPage}
                 onChange={(e) =>
                   handleChange('defaultLandingPage', e.target.value as AppSettings['defaultLandingPage'])
@@ -243,15 +267,16 @@ export function Settings() {
           </div>
 
           <p className="text-xs text-[#66736F]">
-            Strict per-run budgets protect against infinite model retry loops and excessive token consumption.
+            Server limits cap tokens, model calls, searches, and estimated cost per run. USD cost uses a generic estimate, not actual provider billing; health checks confirm reachability, not successful generation.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-[#17201D] mb-1.5">
-                Max Cost per Run ($)
+                Max Estimated Cost per Run ($)
               </label>
               <input
+                aria-label="Max estimated cost per run in dollars"
                 type="number"
                 disabled
                 value={health?.budgets?.maxCostPerRunUsd ?? formData.budgetMaxCost}
@@ -265,6 +290,7 @@ export function Settings() {
                 Max Model Tokens per Run
               </label>
               <input
+                aria-label="Max model tokens per run"
                 type="number"
                 disabled
                 value={health?.budgets?.maxTokensPerRun ?? formData.budgetMaxTokens}
@@ -278,6 +304,7 @@ export function Settings() {
                 Max Model Calls per Run
               </label>
               <input
+                aria-label="Max model calls per run"
                 type="number"
                 disabled
                 value={health?.budgets?.maxModelCallsPerRun ?? 4}
@@ -298,11 +325,12 @@ export function Settings() {
           </div>
 
           <div className="space-y-3">
+            <p className="text-xs text-[#66736F]">These controls are fixed, not editable preferences. Patch approval only records a decision; this app does not apply patches or run test commands.</p>
             <label className="flex items-start gap-3 p-3 rounded-lg border border-[#E3EAE6] bg-[#F8FAF9]/50">
               <input
                 type="checkbox"
-                checked={formData.requireApprovalPatches}
-                onChange={(e) => handleChange('requireApprovalPatches', e.target.checked)}
+                checked
+                disabled
                 className="mt-0.5 rounded text-[#08775E] focus:ring-[#08775E] border-[#E3EAE6]"
               />
               <div>
@@ -310,7 +338,7 @@ export function Settings() {
                   Require approval before applying patches
                 </span>
                 <span className="text-[11px] text-[#66736F]">
-                  Forces an interactive developer review before any code change is recorded.
+                  Proposed patches require a recorded developer decision.
                 </span>
               </div>
             </label>
@@ -318,8 +346,8 @@ export function Settings() {
             <label className="flex items-start gap-3 p-3 rounded-lg border border-[#E3EAE6] bg-[#F8FAF9]/50">
               <input
                 type="checkbox"
-                checked={formData.requireApprovalCommands}
-                onChange={(e) => handleChange('requireApprovalCommands', e.target.checked)}
+                checked
+                disabled
                 className="mt-0.5 rounded text-[#08775E] focus:ring-[#08775E] border-[#E3EAE6]"
               />
               <div>
@@ -327,7 +355,7 @@ export function Settings() {
                   Require approval before running test commands
                 </span>
                 <span className="text-[11px] text-[#66736F]">
-                  Guarantees that no test execution occurs without explicit operator authorization.
+                  Test command execution is not available in this app.
                 </span>
               </div>
             </label>
@@ -335,8 +363,8 @@ export function Settings() {
             <label className="flex items-start gap-3 p-3 rounded-lg border border-[#E3EAE6] bg-[#F8FAF9]/50">
               <input
                 type="checkbox"
-                checked={formData.readOnlyAnalysisDefault}
-                onChange={(e) => handleChange('readOnlyAnalysisDefault', e.target.checked)}
+                checked
+                disabled
                 className="mt-0.5 rounded text-[#08775E] focus:ring-[#08775E] border-[#E3EAE6]"
               />
               <div>
@@ -344,7 +372,7 @@ export function Settings() {
                   Enable read-only analysis by default
                 </span>
                 <span className="text-[11px] text-[#66736F]">
-                  Restricts all diagnostic runs to static AST analysis and retrieval without filesystem write privileges.
+                  Diagnostic runs do not write code changes to your repository.
                 </span>
               </div>
             </label>

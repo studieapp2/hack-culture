@@ -9,11 +9,18 @@ interface CodeDiffProps {
 
 export function CodeDiff({ patch, className = '' }: CodeDiffProps) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState('');
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(patch.proposedCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    setCopyError('');
+    try {
+      await navigator.clipboard.writeText(patch.proposedCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+      setCopyError('Unable to copy. Select and copy the proposed code manually.');
+    }
   };
 
   const originalLines = patch.originalCode.split('\n');
@@ -22,15 +29,15 @@ export function CodeDiff({ patch, className = '' }: CodeDiffProps) {
   return (
     <div className={`border border-[#E3EAE6] rounded-xl overflow-hidden bg-white shadow-sm ${className}`}>
       {/* File header bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#F8FAF9] border-b border-[#E3EAE6]">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap gap-2 items-center justify-between px-4 py-2.5 bg-[#F8FAF9] border-b border-[#E3EAE6]">
+        <div className="flex flex-wrap min-w-0 items-center gap-2">
           <FileCode className="w-4 h-4 text-[#08775E]" />
           <span className="font-mono text-xs font-semibold text-[#17201D]">
             {patch.filePath}
           </span>
           <span className="text-xs text-[#66736F]">·</span>
           <span className="text-xs text-[#66736F]">
-            {originalLines.length} lines modified
+            {originalLines.length} original / {proposedLines.length} proposed lines
           </span>
         </div>
         <button
@@ -51,6 +58,7 @@ export function CodeDiff({ patch, className = '' }: CodeDiffProps) {
           )}
         </button>
       </div>
+      {copyError && <p role="alert" className="px-4 py-2 text-xs text-rose-700">{copyError}</p>}
 
       {/* Patch rationale summary */}
       {patch.explanation && (

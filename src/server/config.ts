@@ -18,18 +18,22 @@ export interface ServerConfig {
 }
 
 export function loadConfig(): ServerConfig {
+  const positiveNumber = (name: string, fallback: number, integer = false) => {
+    const value = Number(process.env[name] ?? fallback);
+    return Number.isFinite(value) && value > 0 && (!integer || Number.isInteger(value)) ? value : fallback;
+  };
   return {
-    appUrl: process.env.APP_URL || 'http://localhost:3000',
+    appUrl: process.env.APP_URL || `http://localhost:${process.env.PORT || '3000'}`,
     tavilyApiKey: process.env.TAVILY_API_KEY?.trim() || undefined,
     bifrostBaseUrl: process.env.BIFROST_BASE_URL?.trim() || undefined,
     bifrostApiKey: process.env.BIFROST_API_KEY?.trim() || undefined,
     bifrostModel: process.env.BIFROST_MODEL?.trim() || 'default',
     bifrostFallbackModel: process.env.BIFROST_FALLBACK_MODEL?.trim() || undefined,
-    maxModelCallsPerRun: parseInt(process.env.MAX_MODEL_CALLS_PER_RUN || '4', 10),
-    maxTavilySearchesPerRun: parseInt(process.env.MAX_TAVILY_SEARCHES_PER_RUN || '3', 10),
-    maxTokensPerRun: parseInt(process.env.MAX_TOKENS_PER_RUN || '15000', 10),
-    maxCostPerRunUsd: parseFloat(process.env.MAX_COST_PER_RUN_USD || '0.50'),
-    requestTimeoutMs: parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10),
+    maxModelCallsPerRun: positiveNumber('MAX_MODEL_CALLS_PER_RUN', 4, true),
+    maxTavilySearchesPerRun: positiveNumber('MAX_TAVILY_SEARCHES_PER_RUN', 3, true),
+    maxTokensPerRun: positiveNumber('MAX_TOKENS_PER_RUN', 15000, true),
+    maxCostPerRunUsd: positiveNumber('MAX_COST_PER_RUN_USD', 0.50),
+    requestTimeoutMs: positiveNumber('REQUEST_TIMEOUT_MS', 30000, true),
     isProduction: process.env.NODE_ENV === 'production'
   };
 }

@@ -6,6 +6,7 @@ export interface TavilySearchOptions {
   maxResults?: number;
   includeDomains?: string[];
   excludeDomains?: string[];
+  timeoutMs?: number;
 }
 
 export interface TavilyRawSearchResult {
@@ -34,6 +35,7 @@ export interface TavilyRawExtractResponse {
 export class TavilyService {
   private cache = new Map<string, { data: VerifiedSource[]; timestamp: number }>();
   private readonly CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes cache
+  private readonly MAX_CACHE_ENTRIES = 200;
 
   private get apiKey(): string | undefined {
     return serverConfig.tavilyApiKey;
@@ -52,12 +54,11 @@ export class TavilyService {
       };
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
       // Test search connectivity with an authoritative query
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-
-      const resp = await fetch('https://api.tavily.com/v1/search', {
+      const resp = await fetch('https://api.tavily.com/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,6 +109,8 @@ export class TavilyService {
         status: 'disconnected',
         error: `Failed to connect to Tavily: ${err?.message || 'Network error'}`
       };
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -119,6 +122,7 @@ export class TavilyService {
       .replace(/api[-_]?key\s*[:=]\s*['"]?[a-zA-Z0-9_\-]+['"]?/gi, '')
       .replace(/bearer\s+[a-zA-Z0-9_\-\.]+/gi, '')
       .replace(/password\s*[:=]\s*['"]?[^'"\s]+['"]?/gi, '')
+      .replace(/\b(?:sk-|tvly-)[a-zA-Z0-9_-]{8,}\b/g, '[redacted]')
       .replace(/[\r\n\t]+/g, ' ')
       .trim()
       .slice(0, 300);
@@ -143,17 +147,21 @@ export class TavilyService {
     }
 
     // Check cache
-    const cached = this.cache.get(cleanQuery);
+    const cacheKey = JSON.stringify([cleanQuery, options.searchDepth || 'basic',
+      options.maxResults || 3, options.includeDomains || [], options.excludeDomains || []]);
+    const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
       return cached.data;
     }
 
-    const maxResults = Math.min(options.maxResults || 3, serverConfig.maxTavilySearchesPerRun);
+    const maxResults = Math.max(1, Math.min(options.maxResults || 3, 20));
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), serverConfig.requestTimeoutMs);
+    const requestTimeout = Math.min(options.timeoutMs ?? serverConfig.requestTimeoutMs, serverConfig.requestTimeoutMs);
+    if (requestTimeout <= 0) throw new Error('The run deadline was reached before documentation retrieval.');
+    const timeout = setTimeout(() => controller.abort(), requestTimeout);
 
     try {
-      const response = await fetch('https://api.tavily.com/v1/search', {
+      const response = await fetch('https://api.tavily.com/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,14 +186,16 @@ export class TavilyService {
         if (response.status === 401 || response.status === 403) {
           throw new Error('Tavily authorization failed. Please check your TAVILY_API_KEY.');
         }
-        const text = await response.text();
-        throw new Error(`Tavily search request failed with status ${response.status}: ${text}`);
+        throw new Error(`Tavily search request failed with status ${response.status}.`);
       }
 
       const data = (await response.json()) as TavilyRawResponse;
       const retrievedAt = new Date().toISOString();
 
-      const sources: VerifiedSource[] = (data.results || []).map((r, index) => {
+      if (!Array.isArray(data.results)) throw new Error('Tavily returned an invalid search response.');
+      const sources: VerifiedSource[] = data.results.filter((r) => {
+        try { return ['http:', 'https:'].includes(new URL(r.url).protocol); } catch { return false; }
+      }).map((r, index) => {
         let publisher = 'External Reference';
         try {
           const parsed = new URL(r.url);
@@ -196,23 +206,31 @@ export class TavilyService {
 
         return {
           id: `tavily-src-${Date.now()}-${index}`,
-          title: r.title || 'Technical Reference',
+          title: typeof r.title === 'string' ? r.title : 'Technical Reference',
           url: r.url,
           publisher,
           publishedAt: r.published_date,
           retrievedAt,
-          excerpt: (r.content || '').slice(0, 600).trim(),
+          excerpt: typeof r.content === 'string' ? r.content.slice(0, 600).trim() : '',
           score: r.score
         };
       });
 
-      this.cache.set(cleanQuery, { data: sources, timestamp: Date.now() });
+      for (const [key, value] of this.cache) {
+        if (Date.now() - value.timestamp >= this.CACHE_TTL_MS) this.cache.delete(key);
+      }
+      if (this.cache.size >= this.MAX_CACHE_ENTRIES) {
+        this.cache.delete(this.cache.keys().next().value!);
+      }
+      this.cache.set(cacheKey, { data: sources, timestamp: Date.now() });
       return sources;
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        throw new Error(`Tavily search timed out after ${serverConfig.requestTimeoutMs}ms`);
+        throw new Error(`Tavily search timed out after ${requestTimeout}ms`);
       }
       throw err;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -241,7 +259,7 @@ export class TavilyService {
     const timeout = setTimeout(() => controller.abort(), serverConfig.requestTimeoutMs);
 
     try {
-      const response = await fetch('https://api.tavily.com/v1/extract', {
+      const response = await fetch('https://api.tavily.com/extract', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -272,6 +290,8 @@ export class TavilyService {
     } catch (err: any) {
       console.warn('Tavily extract warning:', err?.message);
       return new Map();
+    } finally {
+      clearTimeout(timeout);
     }
   }
 }

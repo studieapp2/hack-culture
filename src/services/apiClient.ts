@@ -1,4 +1,4 @@
-import { Run, AppSettings, RunType, RunStatus } from '../types/domain';
+import { Run, RunType, RunStatus } from '../types/domain';
 
 export interface BackendHealth {
   status: 'healthy' | 'degraded' | 'unconfigured';
@@ -28,13 +28,26 @@ export interface BackendHealth {
 
 class ApiClient {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const response = await fetch(endpoint, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options?.headers || {})
-      }
-    });
+    const workflow = endpoint === '/api/fix/analyze' || endpoint === '/api/verify';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), workflow ? 110000 : 20000);
+    try {
+    let response: Response;
+    try {
+      response = await fetch(endpoint, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(options?.headers || {})
+        }
+      });
+    } catch {
+      throw new Error(controller.signal.aborted
+        ? workflow ? 'Request timed out. Check Runs before retrying; the server may still be finishing the run.' :
+          'The server took too long to respond. Please retry.'
+        : 'Unable to reach the server. Check your connection and try again.');
+    }
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -48,7 +61,14 @@ class ApiClient {
       throw new Error(errorMessage);
     }
 
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      throw new Error('The server returned an unreadable response. Please try again.');
+    }
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async getHealth(): Promise<BackendHealth> {
@@ -67,12 +87,8 @@ class ApiClient {
   }
 
   async getRun(runId: string): Promise<Run | undefined> {
-    try {
-      const serverRun = await this.request<any>(`/api/runs/${runId}`);
-      return this.normalizeServerRun(serverRun);
-    } catch {
-      return undefined;
-    }
+    const serverRun = await this.request<any>(`/api/runs/${encodeURIComponent(runId)}`);
+    return this.normalizeServerRun(serverRun);
   }
 
   async startFixRun(input: { error: string; code?: string; fileName?: string }): Promise<Run> {
@@ -92,14 +108,14 @@ class ApiClient {
   }
 
   async approvePatch(runId: string): Promise<Run> {
-    const serverRun = await this.request<any>(`/api/runs/${runId}/approve`, {
+    const serverRun = await this.request<any>(`/api/runs/${encodeURIComponent(runId)}/approve`, {
       method: 'POST'
     });
     return this.normalizeServerRun(serverRun);
   }
 
   async rejectPatch(runId: string): Promise<Run> {
-    const serverRun = await this.request<any>(`/api/runs/${runId}/reject`, {
+    const serverRun = await this.request<any>(`/api/runs/${encodeURIComponent(runId)}/reject`, {
       method: 'POST'
     });
     return this.normalizeServerRun(serverRun);
@@ -135,6 +151,8 @@ class ApiClient {
       updatedAt: s.updatedAt,
       errorInput: s.errorInput,
       codeInput: s.codeInput,
+      fileName: s.fileName,
+      errorMessage: s.errorMessage,
       answerInput: s.answerInput,
       diagnosis: s.diagnosis,
       steps: s.steps || [],

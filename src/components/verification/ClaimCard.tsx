@@ -17,9 +17,11 @@ export function ClaimCard({
   className = ''
 }: ClaimCardProps) {
   return (
-    <div
+    <button
+      type="button"
+      aria-pressed={isSelected}
       onClick={onSelect}
-      className={`p-4 rounded-xl border transition-all text-left cursor-pointer ${
+      className={`w-full p-4 rounded-xl border transition-all text-left cursor-pointer ${
         isSelected
           ? 'bg-white border-[#08775E] ring-1 ring-[#08775E] shadow-sm'
           : 'bg-white hover:bg-[#F8FAF9] border-[#E3EAE6] shadow-xs'
@@ -54,8 +56,8 @@ export function ClaimCard({
           <FileText className="w-3.5 h-3.5 text-[#08775E]" />
           <span>
             {claim.sources.length > 0
-              ? `${claim.sources.length} sample source${claim.sources.length > 1 ? 's' : ''}`
-              : 'Direct API heuristic'}
+              ? `${claim.sources.length} source${claim.sources.length > 1 ? 's' : ''}`
+              : 'No sources returned'}
           </span>
         </div>
 
@@ -64,6 +66,6 @@ export function ClaimCard({
           <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
         </div>
       </div>
-    </div>
+    </button>
   );
 }

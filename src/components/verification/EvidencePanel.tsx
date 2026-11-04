@@ -36,8 +36,8 @@ export function EvidencePanel({ claim, onClose, className = '' }: EvidencePanelP
   return (
     <div className={`bg-white border border-[#E3EAE6] rounded-xl overflow-hidden shadow-xs flex flex-col ${className}`}>
       {/* Header bar */}
-      <div className="flex items-center justify-between px-5 py-3.5 bg-[#F8FAF9] border-b border-[#E3EAE6]">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 px-5 py-3.5 bg-[#F8FAF9] border-b border-[#E3EAE6]">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-[#17201D] uppercase tracking-wider">
             Claim Evidence Dossier
           </span>
@@ -46,6 +46,7 @@ export function EvidencePanel({ claim, onClose, className = '' }: EvidencePanelP
         </div>
         {onClose && (
           <button
+            aria-label="Close evidence inspector"
             onClick={onClose}
             className="p-1 text-[#66736F] hover:text-[#17201D] rounded-md hover:bg-slate-200/60 transition-colors cursor-pointer"
             title="Close inspector"
@@ -123,8 +124,9 @@ export function EvidencePanel({ claim, onClose, className = '' }: EvidencePanelP
                     <div className="font-semibold text-xs text-[#17201D]">
                       {src.title}
                     </div>
-                    {src.url && (
+                    {src.url && /^https?:\/\//i.test(src.url) && (
                       <a
+                        aria-label={`Visit ${src.title}`}
                         href={src.url}
                         target="_blank"
                         rel="noopener noreferrer"

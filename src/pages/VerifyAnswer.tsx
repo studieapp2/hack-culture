@@ -39,17 +39,14 @@ export function VerifyAnswer() {
       if (existing && existing.type === 'answer_verification') {
         setActiveRun(existing);
         setWorkflowState('complete');
-        if (existing.claims.length > 0) {
-          setSelectedClaim(existing.claims[0]);
-        }
+        setSelectedClaim((prev) => existing.claims.find((claim) => claim.id === prev?.id) || existing.claims[0] || null);
       }
-    } else if (draftAnswer) {
-      setInputText(draftAnswer);
     }
-  }, [selectedRunId, runs, draftAnswer]);
+  }, [selectedRunId, runs]);
 
   const handleLoadSample = () => {
     setInputText(SAMPLE_ANSWER_INPUT);
+    setDraftAnswer(SAMPLE_ANSWER_INPUT);
     setValidationError('');
     setServerError(null);
   };
@@ -73,16 +70,15 @@ export function VerifyAnswer() {
 
     try {
       const created = await apiClient.verifyAnswer({ text: inputText });
-      await refreshRuns();
       setActiveRun(created);
       setSelectedRunId(created.id);
-      if (created.claims.length > 0) {
-        setSelectedClaim(created.claims[0]);
-      }
+      setSelectedClaim(created.claims[0] || null);
       setWorkflowState('complete');
+      void refreshRuns();
     } catch (err: any) {
       setServerError(err.message || 'An error occurred during verification.');
       setWorkflowState('input');
+      void refreshRuns();
     }
   };
 
@@ -92,7 +88,16 @@ export function VerifyAnswer() {
     setDraftAnswer('');
     setInputText('');
     setServerError(null);
+    setValidationError('');
+    setSelectedClaim(null);
     setWorkflowState('input');
+  };
+  const handleRetry = () => {
+    const text = activeRun?.answerInput || '';
+    setDraftAnswer(text); setInputText(text);
+    setSelectedRunId(null); setActiveRun(null);
+    setServerError(null); setValidationError('');
+    setSelectedClaim(null); setWorkflowState('input');
   };
 
   return (
@@ -122,12 +127,15 @@ export function VerifyAnswer() {
         )}
       </div>
 
-      {serverError && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-3">
+      {(serverError || activeRun?.errorMessage) && (
+        <div role="alert" className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-3">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <span className="font-semibold block mb-0.5">Verification Notice:</span>
-            <span>{serverError}</span>
+            <span>{serverError || activeRun?.errorMessage}</span>
+            {activeRun?.status === 'failed' && (
+              <button onClick={handleRetry} className="block mt-2 font-semibold underline">Retry verification</button>
+            )}
           </div>
         </div>
       )}
@@ -136,7 +144,7 @@ export function VerifyAnswer() {
       {workflowState === 'input' && (
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="bg-white border border-[#E3EAE6] rounded-2xl p-6 shadow-xs space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E3EAE6]">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E3EAE6]">
               <span className="text-xs font-semibold text-[#17201D] uppercase tracking-wider">
                 Target Passage / Technical Advice
               </span>
@@ -164,9 +172,13 @@ export function VerifyAnswer() {
 
             <div>
               <textarea
+                aria-label="Answer or technical advice to verify"
+                aria-invalid={!!validationError}
+                aria-describedby={validationError ? 'answer-validation' : undefined}
                 value={inputText}
                 onChange={(e) => {
                   setInputText(e.target.value);
+                  setDraftAnswer(e.target.value);
                   if (validationError) setValidationError('');
                 }}
                 rows={6}
@@ -174,7 +186,7 @@ export function VerifyAnswer() {
                 className="w-full text-xs font-mono sm:text-sm text-[#17201D] bg-[#F8FAF9] border border-[#E3EAE6] rounded-xl p-4 focus:outline-hidden focus:ring-2 focus:ring-[#08775E] focus:bg-white transition-all resize-y leading-relaxed"
               />
               {validationError && (
-                <div className="mt-2 flex items-center gap-1.5 text-xs text-rose-600 font-medium">
+                <div id="answer-validation" role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-rose-600 font-medium">
                   <AlertCircle className="w-3.5 h-3.5" />
                   <span>{validationError}</span>
                 </div>
@@ -228,6 +240,11 @@ export function VerifyAnswer() {
       {/* STATE C: COMPLETE */}
       {workflowState === 'complete' && activeRun && (
         <div className="space-y-6">
+          {activeRun.status === 'failed' && (
+            <div role="alert" className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-sm">
+              {activeRun.diagnosis || 'Verification failed. Start another check to retry.'}
+            </div>
+          )}
           {/* Summary stats strip */}
           <VerificationSummary claims={activeRun.claims} />
 

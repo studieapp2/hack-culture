@@ -17,6 +17,40 @@
   code, pre, kbd {
     font-family: var(--font-mono);
   }
+
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid #08775E;
+    outline-offset: 3px;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+
+  /* Server content and filenames must not widen flex/grid columns. */
+  main :where(p, blockquote, span) {
+    overflow-wrap: anywhere;
+  }
+
+  main :where(.grid > div, .flex-1) {
+    min-width: 0;
+  }
+
+  @media (max-width: 639px) {
+    main .justify-between {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 /* Custom subtle scrollbar */

@@ -77,7 +77,7 @@ export interface MeasuredTokenUsage {
 export interface WorkflowProgressStep {
   id: string;
   label: string;
-  status: 'pending' | 'active' | 'completed' | 'failed';
+  status: 'pending' | 'active' | 'completed' | 'failed' | 'skipped';
   description?: string;
   timestamp?: string;
 }

@@ -1,5 +1,6 @@
 import { ExtractedClaim } from '../types';
 import { bifrostService } from './bifrostService';
+import { RunBudget } from './runBudget';
 
 export class ClaimExtractor {
   /**
@@ -32,7 +33,7 @@ export class ClaimExtractor {
    * Extracts factual claims from the text, guaranteeing that every claim
    * references an exact substring with accurate start and end offsets.
    */
-  public async extractClaims(text: string): Promise<ExtractedClaim[]> {
+  public async extractClaims(text: string, budget?: RunBudget): Promise<ExtractedClaim[]> {
     const trimmed = text.trim();
     if (!trimmed) {
       throw new Error('Input text cannot be empty.');
@@ -41,7 +42,7 @@ export class ClaimExtractor {
     // If Bifrost is configured, ask it to extract factual assertions from the text
     if (bifrostService.isConfigured()) {
       try {
-        const claims = await this.extractWithModel(trimmed);
+        const claims = await this.extractWithModel(text, budget);
         if (claims.length > 0) {
           return claims;
         }
@@ -51,10 +52,10 @@ export class ClaimExtractor {
     }
 
     // Deterministic fallback: extract sentences that contain factual/technical assertions
-    return this.extractDeterministically(trimmed);
+    return this.extractDeterministically(text);
   }
 
-  private async extractWithModel(text: string): Promise<ExtractedClaim[]> {
+  private async extractWithModel(text: string, budget?: RunBudget): Promise<ExtractedClaim[]> {
     const systemPrompt = `You are an expert factual claim extraction engine for software documentation and technical advice.
 Your task: Extract distinct, verifiable factual technical claims from the user's text.
 CRITICAL RULES:
@@ -80,7 +81,8 @@ CRITICAL RULES:
       {
         responseFormat: 'json_object',
         temperature: 0.0,
-        maxTokens: 1000
+        maxTokens: 1000,
+        runBudget: budget
       }
     );
 
@@ -88,9 +90,9 @@ CRITICAL RULES:
     const rawList = Array.isArray(parsed?.claims) ? parsed.claims : [];
     const validated: ExtractedClaim[] = [];
 
-    for (let i = 0; i < rawList.length; i++) {
+    for (let i = 0; i < rawList.length && validated.length < 5; i++) {
       const item = rawList[i];
-      const quote = (item.exact_quote || '').trim();
+      const quote = typeof item?.exact_quote === 'string' ? item.exact_quote.trim() : '';
       if (!quote || quote.length < 8) continue;
 
       const startOffset = text.indexOf(quote);
@@ -125,7 +127,8 @@ CRITICAL RULES:
    */
   public extractDeterministically(text: string): ExtractedClaim[] {
     // Split on sentence boundaries preserving locations
-    const sentenceRegex = /[^.!?\n]+[.!?\n]+/g;
+    // Keep decimal/version dots and include a final sentence without punctuation.
+    const sentenceRegex = /[^\n]+?(?:[!?]+(?=\s|$)|\.(?=\s|$)|$)|[^\n]+/g;
     let match: RegExpExecArray | null;
     const claims: ExtractedClaim[] = [];
     let claimIdx = 1;

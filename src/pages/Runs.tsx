@@ -14,20 +14,28 @@ import {
 } from 'lucide-react';
 
 export function Runs() {
-  const { runs, navigateTo } = useApp();
+  const { runs, navigateTo, loadingRuns, runsError, refreshRuns, setDraftError, setDraftCode, setDraftFileName } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<RunType | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<RunStatus | 'all'>('all');
+
+  const handleNewFix = () => {
+    setDraftError('');
+    setDraftCode('');
+    setDraftFileName('');
+    navigateTo('fix_code');
+  };
 
   const filteredRuns = runs.filter((run) => {
     if (typeFilter !== 'all' && run.type !== typeFilter) return false;
     if (statusFilter !== 'all' && run.status !== statusFilter) return false;
     if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
+      const term = searchTerm.trim().toLowerCase();
       const matchTitle = run.title.toLowerCase().includes(term);
       const matchDiag = run.diagnosis?.toLowerCase().includes(term) || false;
       const matchInput = run.errorInput?.toLowerCase().includes(term) || false;
-      return matchTitle || matchDiag || matchInput;
+      const matchAnswer = run.answerInput?.toLowerCase().includes(term) || false;
+      return matchTitle || matchDiag || matchInput || matchAnswer;
     }
     return true;
   });
@@ -57,8 +65,11 @@ export function Runs() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button onClick={refreshRuns} disabled={loadingRuns} className="px-3 py-2 text-xs border border-[#E3EAE6] rounded-lg bg-white">
+            {loadingRuns ? 'Refreshing…' : 'Refresh runs'}
+          </button>
           <button
-            onClick={() => navigateTo('fix_code')}
+            onClick={handleNewFix}
             className="px-3.5 py-2 text-xs font-semibold text-white bg-[#08775E] hover:bg-[#065E4B] rounded-lg transition-colors shadow-xs cursor-pointer"
           >
             New Code Fix
@@ -72,6 +83,7 @@ export function Runs() {
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-[#66736F] absolute left-3 top-1/2 -translate-y-1/2" />
           <input
+            aria-label="Search runs"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -86,6 +98,7 @@ export function Runs() {
           <div className="flex items-center gap-1.5 text-xs">
             <span className="text-[#66736F]">Type:</span>
             <select
+              aria-label="Run type"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as RunType | 'all')}
               className="py-1 px-2 text-xs font-medium text-[#17201D] bg-[#F8FAF9] border border-[#E3EAE6] rounded-lg focus:outline-hidden focus:ring-1 focus:ring-[#08775E] cursor-pointer"
@@ -100,6 +113,7 @@ export function Runs() {
           <div className="flex items-center gap-1.5 text-xs">
             <span className="text-[#66736F]">Status:</span>
             <select
+              aria-label="Run status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as RunStatus | 'all')}
               className="py-1 px-2 text-xs font-medium text-[#17201D] bg-[#F8FAF9] border border-[#E3EAE6] rounded-lg focus:outline-hidden focus:ring-1 focus:ring-[#08775E] cursor-pointer"
@@ -110,27 +124,34 @@ export function Runs() {
               <option value="rejected">Rejected</option>
               <option value="completed">Completed</option>
               <option value="in_progress">In progress</option>
+              <option value="failed">Failed</option>
             </select>
           </div>
         </div>
       </div>
 
       {/* Table / List */}
-      {filteredRuns.length === 0 ? (
+      {runsError && <div role="alert" className="p-4 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">{runsError} Existing results may be stale. Use Refresh runs to retry.</div>}
+      {loadingRuns && <p role="status" className="text-xs text-[#66736F]">Loading runs…</p>}
+      {!loadingRuns && !runsError && filteredRuns.length === 0 ? (
         <EmptyState
           icon={History}
-          title="No matching runs found"
-          description="Try adjusting your search terms or filters to find previous diagnostic runs."
+          title={runs.length === 0 ? 'No runs yet' : 'No matching runs found'}
+          description={runs.length === 0 ? 'Analyze an issue or verify an answer to create your first run.' : 'Try adjusting your search terms or filters to find previous diagnostic runs.'}
           action={{
-            label: 'Clear Filters',
+            label: runs.length === 0 ? 'New Code Fix' : 'Clear Filters',
             onClick: () => {
+              if (runs.length === 0) {
+                handleNewFix();
+                return;
+              }
               setSearchTerm('');
               setTypeFilter('all');
               setStatusFilter('all');
             }
           }}
         />
-      ) : (
+      ) : filteredRuns.length > 0 ? (
         <div className="bg-white border border-[#E3EAE6] rounded-xl shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -192,10 +213,16 @@ export function Runs() {
                     </td>
 
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-[#08775E] group-hover:translate-x-0.5 transition-transform">
+                      <button
+                        aria-label={`Inspect ${run.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleOpenRun(run.id, run.type);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-[#08775E] group-hover:translate-x-0.5 transition-transform">
                         <span>Inspect</span>
                         <ArrowRight className="w-3.5 h-3.5" />
-                      </span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -203,7 +230,7 @@ export function Runs() {
             </table>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

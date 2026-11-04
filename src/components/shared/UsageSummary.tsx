@@ -15,7 +15,7 @@ export function UsageSummary({ usage, className = '' }: UsageSummaryProps) {
       <div className="flex items-center justify-between text-xs text-[#66736F] border-b border-[#E3EAE6] pb-2">
         <span className="font-medium text-[#17201D]">Resource Accounting</span>
         <span className="text-[11px] text-[#66736F] font-mono">
-          {isMeasured ? 'Measured gateway usage' : 'No calls dispatched'}
+          {usage.simulated ? 'Simulated usage' : isMeasured ? 'Reported gateway usage' : 'No token usage reported'}
         </span>
       </div>
 
@@ -60,7 +60,7 @@ export function UsageSummary({ usage, className = '' }: UsageSummaryProps) {
       </div>
 
       <p className="text-[11px] text-[#66736F] leading-relaxed">
-        Usage metrics are recorded directly from model provider headers via the Bifrost gateway.
+        Token counts reflect reported gateway usage; zero tokens does not confirm that no requests were made. Cost is an estimate.
       </p>
     </div>
   );

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export function Overview() {
-  const { navigateTo, runs, setDraftError, setDraftCode } = useApp();
+  const { navigateTo, runs, loadingRuns, runsError, refreshRuns, setDraftError, setDraftCode, setDraftFileName } = useApp();
   const [inputText, setInputText] = useState('');
   const [validationError, setValidationError] = useState('');
 
@@ -30,9 +30,8 @@ export function Overview() {
       return;
     }
     setDraftError(inputText.trim());
-    if (inputText.includes('max_tokens')) {
-      setDraftCode(SAMPLE_CODE_INPUT);
-    }
+    setDraftCode(inputText === SAMPLE_ERROR_INPUT ? SAMPLE_CODE_INPUT : '');
+    setDraftFileName(inputText === SAMPLE_ERROR_INPUT ? 'demo_client.py' : '');
     navigateTo('fix_code');
   };
 
@@ -81,6 +80,9 @@ export function Overview() {
 
         <div className="relative">
           <textarea
+            aria-label="Error, stack trace, or issue description"
+            aria-invalid={!!validationError}
+            aria-describedby={validationError ? 'overview-validation' : undefined}
             value={inputText}
             onChange={(e) => {
               setInputText(e.target.value);
@@ -91,7 +93,7 @@ export function Overview() {
             className="w-full text-sm font-mono text-[#17201D] placeholder:text-[#66736F]/70 bg-[#F8FAF9] border border-[#E3EAE6] rounded-xl p-3.5 focus:outline-hidden focus:ring-2 focus:ring-[#08775E] focus:bg-white transition-all resize-y leading-relaxed"
           />
           {validationError && (
-            <p className="mt-1.5 text-xs text-rose-600 font-medium">{validationError}</p>
+            <p id="overview-validation" role="alert" className="mt-1.5 text-xs text-rose-600 font-medium">{validationError}</p>
           )}
         </div>
 
@@ -170,11 +172,22 @@ export function Overview() {
         </div>
 
         <div className="divide-y divide-[#E3EAE6]">
+          {runsError && (
+            <div role="alert" className="p-5 text-xs text-rose-700">
+              {runsError} <button onClick={refreshRuns} disabled={loadingRuns} className="underline">Retry</button>
+            </div>
+          )}
+          {loadingRuns ? (
+            <p role="status" className="p-5 text-xs text-[#66736F]">Loading runs…</p>
+          ) : !runsError && runs.length === 0 && (
+            <p className="p-5 text-xs text-[#66736F]">No runs yet. Analyze an issue or verify an answer to get started.</p>
+          )}
           {runs.slice(0, 3).map((run) => (
-            <div
+            <button
+              type="button"
               key={run.id}
               onClick={() => handleOpenRun(run.id, run.type)}
-              className="px-5 py-3.5 hover:bg-[#F8FAF9] transition-colors flex items-center justify-between gap-4 cursor-pointer"
+              className="w-full text-left px-5 py-3.5 hover:bg-[#F8FAF9] transition-colors flex flex-wrap items-center justify-between gap-4 cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="p-2 rounded-md bg-[#F8FAF9] text-[#66736F] shrink-0 border border-[#E3EAE6]">
@@ -188,7 +201,7 @@ export function Overview() {
                   <div className="text-xs font-semibold text-[#17201D] truncate">
                     {run.title}
                   </div>
-                  <div className="text-[11px] text-[#66736F] flex items-center gap-2 mt-0.5">
+                  <div className="text-[11px] text-[#66736F] flex flex-wrap items-center gap-2 mt-0.5">
                     <span>{run.type === 'code_fix' ? 'Code Fix' : 'Verification'}</span>
                     <span>·</span>
                     <span className="font-mono tabular-nums">
@@ -204,7 +217,7 @@ export function Overview() {
                 <RunStatusBadge status={run.status} />
                 <ArrowRight className="w-3.5 h-3.5 text-[#66736F]" />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
