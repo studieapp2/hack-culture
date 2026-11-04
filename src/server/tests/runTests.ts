@@ -8,6 +8,14 @@ import { ExtractedClaim, VerifiedSource } from '../types';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { serverConfig } from '../config';
+
+// Automated tests must never spend the operator's live provider credentials.
+const liveConfig = { ...serverConfig };
+Object.assign(serverConfig, {
+  tavilyApiKey: undefined, bifrostBaseUrl: undefined, bifrostApiKey: undefined,
+  maxModelCallsPerRun: 4, maxTokensPerRun: 15000, maxCostPerRunUsd: 0.50
+});
 
 let passed = 0;
 let failed = 0;
@@ -193,7 +201,7 @@ async function runAllTests() {
   }
 }
 
-runAllTests().catch((err) => {
+runAllTests().finally(() => Object.assign(serverConfig, liveConfig)).catch((err) => {
   console.error('Test execution failed:', err);
   process.exit(1);
 });

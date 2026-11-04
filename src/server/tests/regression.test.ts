@@ -416,3 +416,5 @@ test('Browser client timeout restores control instead of waiting indefinitely', 
     globalThis.setTimeout = nativeSetTimeout;
   }
 });
+
+await import('./diagnoseApiError.test');

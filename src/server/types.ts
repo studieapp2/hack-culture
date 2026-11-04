@@ -27,6 +27,7 @@ export interface VerifiedSource {
   retrievedAt: string;
   excerpt: string;
   score?: number;
+  extractionStatus?: 'extracted' | 'not_extracted';
 }
 
 export interface ExtractedClaim {
@@ -40,6 +41,7 @@ export interface ExtractedClaim {
   explanation: string;
   sources: VerifiedSource[];
   suggestedCorrection?: string;
+  supportingSourceUrls?: string[];
 }
 
 export interface CodePatch {
@@ -72,6 +74,9 @@ export interface MeasuredTokenUsage {
   latencyMs: number;
   fallbackUsed?: boolean;
   fallbackModel?: string;
+  usageReported?: boolean;
+  requestedModel?: string;
+  costBasis?: 'configured_rates' | 'generic_estimate' | 'mixed';
 }
 
 export interface WorkflowProgressStep {
