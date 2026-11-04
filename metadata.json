@@ -1,0 +1,6 @@
+{
+  "name": "PatchPilot",
+  "description": "Verify the fix. Ship with confidence. Token-efficient AI coding agent and stale-answer verification platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

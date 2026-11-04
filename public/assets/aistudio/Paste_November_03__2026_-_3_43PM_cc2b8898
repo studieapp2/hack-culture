@@ -1,0 +1,1519 @@
+You are an elite founding product engineer, senior SaaS architect, and world-class product designer.
+
+Your task is to build the complete FRONTEND FOUNDATION for a new AI developer platform called:
+
+PATCHPILOT
+
+This is a real product being developed for the Global AI Hackathon.
+
+It must be designed with the quality, sophistication, clarity, and architectural discipline of a serious venture-backed developer software company.
+
+We are NOT building a hackathon website.
+
+We are building a premium AI coding and verification platform.
+
+The entire product, including navigation, user interface, written copy, and demo experience, must be in English.
+
+==================================================
+1. CRITICAL PROJECT IDENTITY
+==================================================
+
+PRODUCT NAME:
+PatchPilot
+
+TAGLINE:
+"Verify the fix. Ship with confidence."
+
+CORE PRODUCT PROMISE:
+PatchPilot helps developers resolve software errors efficiently by checking whether AI-generated technical advice is accurate and up to date before proposing code changes.
+
+The product combines two major capabilities:
+
+1. A token-efficient AI coding agent.
+2. A stale-answer verification engine.
+
+Both capabilities must operate as parts of ONE integrated product.
+
+COMPETITION CONTEXT:
+
+We are addressing two Global AI Hackathon problem statements:
+
+BIFROST:
+"Build a Coding Agent That Gets the Job Done on the Fewest Tokens"
+
+TAVILY:
+"Build a Stale-Answer Detector for AI Applications"
+
+The future backend must demonstrate meaningful functionality for BOTH challenges.
+
+The coding agent must eventually:
+- Diagnose real programming errors.
+- Work on narrowly scoped development tasks.
+- Minimize unnecessary model tokens.
+- Use budget controls.
+- Support model fallback.
+- Require human approval before dangerous actions.
+- Produce small, reviewable code changes.
+- Execute controlled tests.
+- Report real token and cost usage.
+
+The verification engine must eventually:
+- Analyze AI-generated answers.
+- Extract factual claims.
+- Identify claims potentially affected by changing information.
+- Verify claims using current sources.
+- Distinguish verified, outdated, and uncertain claims.
+- Provide claim-specific evidence and corrections.
+
+The coding workflow will use the verification engine internally.
+
+IMPORTANT:
+This initial implementation is FRONTEND ONLY.
+
+Create a fully interactive frontend using clearly labeled local demo data.
+
+Do not connect external services yet.
+
+==================================================
+2. PRODUCT PHILOSOPHY
+==================================================
+
+PatchPilot should feel fundamentally different from generic AI coding dashboards.
+
+Our philosophy:
+
+"Complex technology. Remarkably simple experience."
+
+A user should understand what the product does within five seconds.
+
+The design must communicate:
+
+- Trust
+- Precision
+- Intelligence
+- Reliability
+- Clarity
+- Professional engineering
+- Minimalism
+
+The interface should feel calm, intelligent, and deliberate.
+
+Not flashy.
+Not gimmicky.
+Not overloaded.
+
+We want the quality of a product that professional development teams would genuinely enjoy using every day.
+
+Do not create a marketing website as the primary experience.
+
+Create the actual logged-in application interface.
+
+Do not create fictional hackathons, prize pools, communities, leaderboards, investor portals, or project galleries.
+
+==================================================
+3. DESIGN SYSTEM
+==================================================
+
+DESIGN INSPIRATION:
+
+Study the visual qualities associated with:
+
+- Linear: precise, polished enterprise UI.
+- Vercel: elegant developer-oriented interfaces.
+- Raycast: thoughtful interactions.
+- ChatGPT: approachable simplicity.
+- Modern high-quality IDE interfaces: structured code review.
+
+Use these as quality references, not as templates to copy.
+
+VISUAL DIRECTION:
+
+Create a sophisticated light-theme application.
+
+The overall interface should feel:
+
+- Premium
+- Minimal
+- Modern
+- Highly readable
+- Carefully spaced
+- Quietly technical
+
+COLOR SYSTEM:
+
+Primary application background:
+#F8FAF9
+
+Surface:
+#FFFFFF
+
+Main text:
+#17201D
+
+Secondary text:
+#66736F
+
+Borders:
+#E3EAE6
+
+Primary accent:
+#08775E
+
+Primary accent hover:
+#065E4B
+
+Soft accent background:
+#EAF6F0
+
+Dark code editor background:
+#101816
+
+Success:
+Muted emerald.
+
+Warning:
+Subtle amber.
+
+Error:
+Controlled, sophisticated red.
+
+Information:
+Neutral blue-gray.
+
+Use color intentionally.
+
+Never use bright colors without a clear semantic purpose.
+
+AVOID:
+
+- Purple and blue AI gradients.
+- Giant decorative AI orbs.
+- Glassmorphism everywhere.
+- Excessive glowing effects.
+- Random neon accents.
+- Oversized icons.
+- Emoji-based navigation.
+- Generic dashboard cards everywhere.
+- Huge gradients behind every heading.
+- Excessive animations.
+- Fake-looking statistics.
+- Unnecessary decorative illustrations.
+
+TYPOGRAPHY:
+
+Use Geist or Inter.
+
+Create excellent typography hierarchy:
+
+Page headlines:
+Large, elegant, confident.
+
+Section headings:
+Compact but clear.
+
+Body:
+Highly readable.
+
+Metadata:
+Subtle.
+
+Code:
+A beautiful monospace font.
+
+Spacing must be consistent throughout the application.
+
+Use an 8px-based spacing system.
+
+CORNER RADIUS:
+
+Moderately rounded.
+Avoid excessive pill-shaped containers.
+
+SHADOWS:
+
+Extremely subtle.
+Prefer elegant borders and surface contrast.
+
+BUTTONS:
+
+- Strong primary buttons.
+- Elegant secondary buttons.
+- Subtle icon buttons.
+- Proper hover, focus, disabled, and loading states.
+- Beautiful microinteractions.
+
+ICONS:
+
+Use Lucide React.
+
+Avoid creating an icon-heavy interface.
+
+BRAND IDENTITY:
+
+Create a minimal custom PatchPilot logo.
+
+The mark should subtly communicate:
+- Code
+- Precision
+- Verification
+
+It should work as a small sidebar icon.
+
+Avoid generic robot, shield, lightning bolt, or rocket logos.
+
+The product should feel distinctive without being decorative.
+
+==================================================
+4. APPLICATION ARCHITECTURE
+==================================================
+
+Use:
+
+- React
+- TypeScript
+- Tailwind CSS
+- Lucide React
+- Reusable components
+- Clean routing
+- Maintainable state management
+
+Use existing libraries already available in the environment where practical.
+
+Do not add heavy dependencies unnecessarily.
+
+Build a professional component structure.
+
+Suggested organization:
+
+src/
+  components/
+    layout/
+    navigation/
+    shared/
+    runs/
+    verification/
+    code/
+  pages/
+    Overview
+    FixCode
+    VerifyAnswer
+    Runs
+    Settings
+  data/
+    demoFixtures
+  services/
+    mockAgentService
+    mockVerificationService
+    mockRunsService
+  types/
+    domain
+  hooks/
+  styles/
+
+Adapt the organization to the generated project's existing conventions if needed.
+
+CRITICAL:
+
+Do not build the application as one giant component.
+
+Create typed interfaces and reusable UI components.
+
+Prepare the frontend for a future API-driven backend.
+
+Use a service abstraction so mock implementations can later be replaced with real integrations without rewriting the UI.
+
+Do not implement the real backend now.
+
+==================================================
+5. GLOBAL APPLICATION SHELL
+==================================================
+
+Create a complete SaaS application layout.
+
+DESKTOP STRUCTURE:
+
+LEFT SIDEBAR:
+Approximately 240px wide.
+
+TOP HEADER:
+Approximately 60px high.
+
+MAIN CONTENT:
+Flexible central workspace.
+
+CONTEXTUAL INSPECTOR:
+Optional right-side panel, approximately 320px wide, only when it adds value.
+
+Avoid forcing three columns on every screen.
+
+The main work area must always feel spacious.
+
+LEFT NAVIGATION:
+
+At the top:
+- PatchPilot logo
+- PatchPilot wordmark
+
+Primary navigation:
+
+1. Overview
+2. Fix Code
+3. Verify Answer
+4. Runs
+
+Separator.
+
+Secondary navigation:
+
+5. Settings
+
+At the bottom:
+- Workspace indicator
+- Small user profile placeholder
+
+Use clear active navigation states.
+
+TOP BAR:
+
+- Current page title
+- Contextual breadcrumb where useful
+- Demo Mode indicator
+- Relevant page actions
+
+Avoid unnecessary top-bar clutter.
+
+RESPONSIVENESS:
+
+Desktop:
+Full sidebar.
+
+Tablet:
+Compact navigation as appropriate.
+
+Mobile:
+Collapsible navigation drawer.
+
+All important flows must remain usable on smaller screens.
+
+No horizontal overflow.
+
+==================================================
+6. PAGE ONE — OVERVIEW
+==================================================
+
+This is the product's first impression.
+
+It must look exceptionally good.
+
+GOAL:
+
+A new user must immediately understand:
+
+"What is PatchPilot?"
+
+"What can I do here?"
+
+"How do I begin?"
+
+The page should feel more like a useful workspace than a traditional dashboard.
+
+HERO:
+
+Small eyebrow:
+"AI DEVELOPMENT WORKSPACE"
+
+Headline:
+
+"Fix what's broken.
+Verify what's changed."
+
+Subheadline:
+
+"Diagnose errors, verify technical claims, and review safer code changes — without wasting tokens."
+
+Make the typography refined and beautiful.
+
+Do not use a giant decorative hero image.
+
+PRIMARY ACTION AREA:
+
+Create a sophisticated input component resembling a premium command workspace.
+
+Placeholder:
+
+"Paste an error, stack trace, or describe what went wrong..."
+
+The input should support multiple lines.
+
+Include:
+
+- Analyze issue button
+- Try sample issue button
+
+Optional small helper text:
+
+"Start with an error. PatchPilot handles the investigation."
+
+When users choose "Try sample issue", populate a realistic synthetic example.
+
+When users click "Analyze issue", navigate into the Fix Code workflow with the input preserved.
+
+SECONDARY ENTRY POINTS:
+
+Below the main input, show two beautifully designed feature entry points.
+
+FIRST:
+
+Fix Code
+"Find the cause. Verify the fix. Review the patch."
+
+Icon: minimal code-related icon.
+
+SECOND:
+
+Verify Answer
+"Find outdated claims before they cause problems."
+
+Icon: minimal verification-related icon.
+
+These should feel like elegant product actions, not giant marketing cards.
+
+RECENT ACTIVITY:
+
+Add a small, sophisticated recent-runs section.
+
+Use coherent local demo data.
+
+Each row should include:
+- Run title
+- Type
+- Status
+- Time
+- Subtle icon
+
+Clicking a row opens the corresponding run.
+
+Do not invent a huge history of activity.
+
+Keep the homepage quiet and focused.
+
+==================================================
+7. PAGE TWO — FIX CODE
+==================================================
+
+This is the flagship product experience.
+
+It must be the most polished and compelling screen in the application.
+
+The user should be able to go from a software problem to a clear, reviewable solution.
+
+Build a complete multi-state interface.
+
+STATE A:
+NEW ANALYSIS
+
+Headline:
+
+"Let's fix the issue."
+
+Description:
+
+"Share the error and any relevant code. PatchPilot will investigate and verify the proposed solution."
+
+INPUTS:
+
+1. Error / stack trace
+
+A large, premium textarea.
+
+2. Relevant code
+
+An optional code editor-style input.
+
+3. Optional local file upload
+
+Support basic text-based files:
+.py
+.js
+.ts
+.tsx
+.json
+.txt
+
+Files may be read locally for display.
+
+Do not upload them to a server.
+
+4. Sample issue button.
+
+PRIMARY ACTION:
+
+"Analyze issue"
+
+The CTA should be visually prominent without being oversized.
+
+VALIDATION:
+
+Prevent an empty analysis.
+
+Show clear, helpful validation text.
+
+Do not show browser alert() dialogs.
+
+SAMPLE CASE:
+
+Use a completely synthetic application.
+
+Error:
+
+"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."
+
+Synthetic Python example:
+
+response = client.chat.completions.create(
+    model="demo-model",
+    messages=messages,
+    max_tokens=500
+)
+
+For this fictional demo model, the sample error states that max_tokens is unsupported.
+
+The demo's proposed patch should update the parameter to max_completion_tokens.
+
+Do not present this as a universal rule for every AI provider or model.
+
+Explain that compatibility depends on the exact provider, model and API version.
+
+STATE B:
+ANALYSIS IN PROGRESS
+
+When Analyze is clicked, simulate a deterministic workflow using local state.
+
+Display a beautifully designed progress timeline.
+
+Steps:
+
+1. Inspecting error
+2. Identifying relevant claims
+3. Checking technical information
+4. Preparing minimal patch
+5. Reviewing simulated tests
+6. Ready for approval
+
+Use subtle progress animation.
+
+The animation should look like a serious engineering tool processing a task.
+
+Do not falsely suggest that actual models, tools, or external searches are running.
+
+Display a small, visible label:
+
+"Simulated workflow"
+
+All progress and results are demo fixtures.
+
+STATE C:
+ANALYSIS COMPLETE
+
+Build a premium results layout.
+
+MAIN COLUMN:
+
+SECTION 1:
+Diagnosis
+
+Title:
+"Root cause identified"
+
+Display a concise explanation of the problem.
+
+For the sample:
+
+"The request uses a parameter that the selected demo model does not accept."
+
+Show a confidence or verification status only when supported by the demo fixture.
+
+SECTION 2:
+Verification
+
+Title:
+"Technical claims checked"
+
+Display the relevant claim.
+
+For example:
+
+"The selected model accepts max_tokens."
+
+Status:
+Outdated in this synthetic demo scenario.
+
+Explanation:
+"The supplied error indicates this parameter is unsupported for the selected demo model."
+
+Show a clearly labeled demo source.
+
+All sources must be marked as sample data.
+
+Do not fabricate live documentation citations.
+
+SECTION 3:
+Proposed Patch
+
+This must look excellent.
+
+Create a beautiful code diff component.
+
+Show:
+
+Original:
+max_tokens=500
+
+Proposed:
+max_completion_tokens=500
+
+Removed lines:
+Muted red background.
+
+Added lines:
+Muted green background.
+
+Use proper monospace typography.
+
+Show:
+- File name
+- Changed lines
+- Minimal patch explanation
+
+Do not build an overly complicated full IDE.
+
+A focused diff viewer is enough.
+
+SECTION 4:
+Test Review
+
+Show a compact summary:
+
+- Syntax check
+- Focused test
+- Result
+
+These are SIMULATED results.
+
+Label them clearly.
+
+SECTION 5:
+Human Approval
+
+Show:
+
+"Review this change before applying it."
+
+Actions:
+
+Approve demo patch
+Reject patch
+
+Approving updates the local demo state.
+
+Rejecting updates the local demo state.
+
+Neither action modifies any actual filesystem or repository.
+
+RIGHT CONTEXT PANEL:
+
+During analysis and review, display:
+
+RUN OVERVIEW
+
+- Current status
+- Completed steps
+- Verification summary
+
+EFFICIENCY
+
+- Simulated input tokens
+- Simulated output tokens
+- Simulated estimated model cost
+- Budget indicator
+
+MODEL
+
+- Primary model: Demo model
+- Fallback: Not configured
+- Provider status: Demo
+
+SAFETY
+
+- Approval required
+- No commands executed
+- No files modified
+
+Use a calm, elegant presentation.
+
+Do not overwhelm the user with statistics.
+
+IMPORTANT:
+
+Later, the real backend will use Bifrost for model calls, efficiency measurements, budgets and fallback.
+
+Therefore, the UI architecture must accommodate actual token and cost fields.
+
+But do not claim any real token savings in demo mode.
+
+Do not display fake performance improvements such as "92% fewer tokens".
+
+Only display clearly labeled illustrative usage values if necessary.
+
+==================================================
+8. PAGE THREE — VERIFY ANSWER
+==================================================
+
+This page represents the Tavily stale-answer detection challenge.
+
+It must be a first-class feature.
+
+Do not reduce it to a small search box inside Fix Code.
+
+HEADLINE:
+
+"Is this answer still accurate?"
+
+SUBHEADLINE:
+
+"Find outdated claims in AI-generated answers before you rely on them."
+
+INPUT AREA:
+
+A large, beautifully designed text editor area.
+
+Placeholder:
+
+"Paste an AI-generated answer to check its claims..."
+
+Include:
+
+- Verify claims button
+- Try sample answer button
+- Clear button
+
+The experience must be simple and approachable.
+
+SAMPLE ANSWER:
+
+Create a synthetic example containing three factual claims:
+
+1. A claim that is verified in the demo fixture.
+2. A claim that is outdated in the demo fixture.
+3. A claim that cannot be confidently verified.
+
+The sample should relate to software APIs or developer documentation.
+
+Avoid presenting synthetic claims as current real-world facts.
+
+ANALYSIS FLOW:
+
+Simulate these steps:
+
+1. Extract claims
+2. Assess freshness sensitivity
+3. Review sample evidence
+4. Classify claims
+5. Produce report
+
+All processing must use deterministic local fixtures.
+
+RESULTS:
+
+Display a refined verification summary.
+
+Show:
+
+- Total claims checked
+- Verified claims
+- Outdated claims
+- Uncertain claims
+
+The summary should be compact.
+
+Avoid giant metric cards.
+
+CLAIM LIST:
+
+Every claim has:
+
+- Exact claim text
+- Status badge
+- Concise explanation
+- Source information
+- Suggested correction if relevant
+
+STATUS TYPES:
+
+VERIFIED:
+Muted green.
+
+OUTDATED:
+Subtle red.
+
+UNCERTAIN:
+Muted amber.
+
+Use readable words in addition to colors.
+
+EVIDENCE PANEL:
+
+When a claim is selected, show a contextual evidence panel.
+
+Include:
+
+- Original claim
+- Verification status
+- Why the claim received that status
+- Supporting demo evidence
+- Sample source title
+- Whether the source was actually retrieved
+
+For this phase, source retrieval is NOT implemented.
+
+Display:
+
+"Sample evidence — live Tavily verification not connected."
+
+Do not invent clickable citations to nonexistent pages.
+
+If a claim is outdated, show a suggested corrected statement.
+
+If uncertain, explain why the available evidence is insufficient.
+
+Do not force uncertain claims into verified or outdated categories.
+
+IMPORTANT FOR FUTURE DEVELOPMENT:
+
+The eventual backend must use Tavily to retrieve sources.
+
+The same verification engine must be usable by:
+
+- Verify Answer
+- The Fix Code agent
+
+Therefore, create reusable claim and evidence components and shared data types.
+
+==================================================
+9. PAGE FOUR — RUNS
+==================================================
+
+Build a professional run-history interface.
+
+HEADLINE:
+
+"Runs"
+
+DESCRIPTION:
+
+"Review previous analyses, verification results, and patch decisions."
+
+Display a clean, compact table or list.
+
+FIELDS:
+
+- Run name
+- Run type
+- Status
+- Created date
+- Tokens
+- Estimated cost
+
+RUN TYPES:
+
+- Code Fix
+- Answer Verification
+
+STATUS:
+
+- Completed
+- Awaiting approval
+- Approved
+- Rejected
+- Failed
+- In progress
+
+Provide:
+
+- Search by run title
+- Filter by run type
+- Filter by status
+- Click to open run
+
+Use a small, consistent local demo dataset.
+
+Clicking a run must open its details.
+
+The run details must reuse the same components as Fix Code and Verify Answer.
+
+Do not create completely different visual systems for history and active runs.
+
+DATA CONSISTENCY:
+
+If a user approves a demo patch in Fix Code, that run's status must also update in Runs.
+
+The app must maintain coherent state.
+
+Persist local runs using localStorage where appropriate.
+
+Show elegant empty states.
+
+==================================================
+10. PAGE FIVE — SETTINGS
+==================================================
+
+Create a sophisticated settings interface.
+
+Use a clean settings layout with clearly separated sections.
+
+SECTION A:
+Workspace Preferences
+
+- Workspace name
+- Default landing page
+
+SECTION B:
+Budget Controls
+
+- Maximum estimated cost per run
+- Maximum model tokens per run
+- Budget warning threshold
+
+Use simple, accessible controls.
+
+These settings must persist locally.
+
+Clearly state:
+
+"Budget controls are simulated until backend integration."
+
+SECTION C:
+Safety Controls
+
+- Require approval before applying patches
+- Require approval before running commands
+- Enable read-only analysis by default
+
+These controls should be enabled by default where appropriate.
+
+Persist local settings.
+
+Do not actually execute or authorize real commands.
+
+SECTION D:
+Model Routing
+
+Display:
+
+Primary model:
+Not connected
+
+Fallback model:
+Not connected
+
+Routing provider:
+Bifrost — Not connected
+
+Do not create fake connected states.
+
+SECTION E:
+Integrations
+
+Show three clean integration rows.
+
+Bifrost
+Status: Not connected
+Description:
+"Model routing, budget enforcement, and usage tracking."
+
+Tavily
+Status: Not connected
+Description:
+"Current-source research and claim verification."
+
+GitHub
+Status: Not connected
+Description:
+"Repository access and patch review."
+
+Do not implement API key collection.
+
+Do not implement OAuth.
+
+Do not generate fake integration success notifications.
+
+Show a clear explanation:
+
+"Integrations will be configured after the backend is deployed."
+
+==================================================
+11. SHARED COMPONENTS
+==================================================
+
+Create reusable components for:
+
+AppShell
+Sidebar
+TopBar
+PageHeader
+PrimaryAction
+StatusBadge
+DemoModeBadge
+EmptyState
+LoadingState
+ErrorState
+RunTimeline
+RunStatus
+CodeDiff
+ClaimCard
+ClaimDetail
+EvidencePanel
+SourceCard
+UsageSummary
+BudgetIndicator
+ApprovalControls
+ActivityList
+SettingsSection
+
+Avoid duplicating functionality.
+
+Keep the component API clean and typed.
+
+Use thoughtful hover states.
+
+Every clickable element must have a meaningful action.
+
+==================================================
+12. DEMO DATA REQUIREMENTS
+==================================================
+
+We are using local demo fixtures in this phase.
+
+Create a typed demo data layer.
+
+It must contain:
+
+1. A synthetic API parameter error.
+2. A synthetic proposed patch.
+3. Simulated test outcomes.
+4. Example verification claims.
+5. Example evidence entries.
+6. A few coherent historical runs.
+7. Simulated usage values.
+8. Default settings.
+
+All data must be internally consistent.
+
+Never show a claim as verified on one screen and uncertain on another.
+
+Do not generate random statistics on every render.
+
+Use deterministic fixtures.
+
+Use a shared state model so the same run has the same status everywhere.
+
+Preserve user-entered form content during navigation where practical.
+
+Clearly label demo outputs.
+
+Use localStorage only where it improves the experience.
+
+Handle malformed stored data gracefully.
+
+==================================================
+13. IMPORTANT DOMAIN TYPES
+==================================================
+
+Prepare TypeScript types for the following concepts.
+
+RUN:
+
+- id
+- title
+- type
+- status
+- createdAt
+- updatedAt
+- steps
+- claims
+- patch
+- tests
+- usage
+
+CLAIM:
+
+- id
+- text
+- status
+- explanation
+- sources
+- suggestedCorrection
+
+SOURCE:
+
+- id
+- title
+- url, optional
+- publisher
+- publishedAt, optional
+- retrievedAt, optional
+- excerpt
+- isDemoSource
+
+PATCH:
+
+- id
+- filePath
+- originalCode
+- proposedCode
+- explanation
+- approvalStatus
+
+TEST RESULT:
+
+- id
+- name
+- status
+- output
+- simulated
+
+TOKEN USAGE:
+
+- inputTokens
+- outputTokens
+- totalTokens
+- estimatedCost
+- currency
+- simulated
+
+STEP:
+
+- id
+- label
+- status
+- description
+
+Use these as architectural guidance.
+
+Adapt fields where necessary to maintain a sensible type system.
+
+Do not over-engineer.
+
+==================================================
+14. FUTURE BACKEND CONTRACT
+==================================================
+
+The frontend must be designed for a future backend.
+
+Prepare a service interface for:
+
+startFixRun(input)
+
+verifyAnswer(input)
+
+getRun(runId)
+
+listRuns(filters)
+
+approvePatch(runId)
+
+rejectPatch(runId)
+
+getUsage(runId)
+
+getSettings()
+
+updateSettings(settings)
+
+The initial implementation must use local mock services.
+
+The service layer must be replaceable without rewriting page components.
+
+All real integrations will be implemented in later phases.
+
+Do not make external HTTP requests yet.
+
+Do not create fake REST endpoints that pretend to be functional.
+
+==================================================
+15. INTERACTION QUALITY
+==================================================
+
+This is critical.
+
+Do not build static screens with decorative buttons.
+
+Navigation must work.
+
+Inputs must work.
+
+Sample buttons must work.
+
+Filters must work.
+
+Run details must open.
+
+Claims must be selectable.
+
+Approval and rejection must update local state.
+
+Settings must save locally.
+
+Error states must be handled.
+
+The user must be able to complete the entire demo workflow.
+
+Examples:
+
+OVERVIEW:
+
+User pastes error.
+User clicks Analyze issue.
+Fix Code opens with the error populated.
+
+FIX CODE:
+
+User loads sample.
+User clicks Analyze.
+Simulated steps progress.
+Diagnosis appears.
+Verification appears.
+Patch diff appears.
+Simulated tests appear.
+User approves patch.
+Run status updates.
+
+VERIFY ANSWER:
+
+User loads sample.
+User clicks Verify.
+Claims appear.
+User selects outdated claim.
+Evidence panel updates.
+Suggested correction is visible.
+
+RUNS:
+
+User opens the completed fix run.
+The same diagnosis, patch and status appear.
+
+SETTINGS:
+
+User changes token budget.
+User navigates away.
+User returns.
+The selected value remains.
+
+These flows must work without any real backend.
+
+==================================================
+16. PREMIUM UX DETAILS
+==================================================
+
+Make every part of the experience feel considered.
+
+NAVIGATION:
+- Smooth active-state transitions.
+- Clear visual hierarchy.
+- Minimal clutter.
+- Consistent sidebar spacing.
+
+INPUTS:
+- Beautiful focus rings.
+- Clear labels.
+- Thoughtful placeholders.
+- Accessible validation.
+
+BUTTONS:
+- Polished hover states.
+- Loading indicators.
+- Disabled states.
+- Correct button hierarchy.
+
+STATUS:
+- Meaningful colors.
+- Clear text.
+- No ambiguous icons.
+
+CODE:
+- Beautiful syntax presentation.
+- Readable line lengths.
+- Clear added and removed lines.
+- Good contrast.
+- No unnecessary IDE complexity.
+
+PROGRESS:
+- Subtle animations.
+- Clear current step.
+- Clear completed steps.
+- No distracting movement.
+
+EMPTY STATES:
+- Helpful explanations.
+- Relevant CTA.
+- Minimal illustration or icon where appropriate.
+
+RESPONSIVENESS:
+- The desktop experience should be exceptional.
+- The mobile experience must remain usable.
+- Stack panels gracefully.
+- Convert side inspectors to drawers or lower sections as needed.
+
+ACCESSIBILITY:
+- Keyboard navigation.
+- Visible focus states.
+- Proper form labels.
+- Accessible status communication.
+- Reduced-motion support.
+- Suitable contrast.
+
+==================================================
+17. NON-NEGOTIABLE RESTRICTIONS
+==================================================
+
+DO NOT:
+
+- Build a hackathon website.
+- Build a marketing-only landing page.
+- Connect Gemini API.
+- Connect OpenAI API.
+- Connect Bifrost.
+- Connect Tavily.
+- Connect GitHub.
+- Execute shell commands on user code.
+- Modify real repositories.
+- Implement real authentication.
+- Implement payments.
+- Add a database.
+- Request API keys.
+- Expose secrets.
+- Perform real web searches.
+- Claim simulated tests actually ran.
+- Invent real source citations.
+- Present simulated token savings as measured results.
+- Create unnecessary features.
+- Add a chatbot just because this is an AI application.
+- Add a voice agent.
+- Add a generic AI assistant sidebar.
+- Add fake testimonials or customers.
+- Add meaningless charts.
+- Use random placeholder text throughout the interface.
+
+No external model calls are necessary for runtime demo interactions.
+
+==================================================
+18. IMPLEMENTATION ORDER
+==================================================
+
+Build in this order:
+
+STEP 1:
+Create the design system and global app shell.
+
+STEP 2:
+Implement navigation and routing.
+
+STEP 3:
+Build the Overview screen.
+
+STEP 4:
+Build the complete Fix Code input and results experience.
+
+STEP 5:
+Build the Verify Answer experience.
+
+STEP 6:
+Build Runs and run details.
+
+STEP 7:
+Build Settings.
+
+STEP 8:
+Implement shared demo services and state.
+
+STEP 9:
+Polish animations, loading states, empty states and responsive layouts.
+
+STEP 10:
+Verify the app builds and all main demo flows work.
+
+If you need to prioritize implementation effort, prioritize:
+
+1. App shell
+2. Fix Code
+3. Verify Answer
+4. Overview
+5. Runs
+6. Settings
+
+Do not sacrifice the quality of the two main workflows.
+
+==================================================
+19. DEFINITION OF DONE
+==================================================
+
+The frontend is complete when:
+
+- The product is unmistakably PatchPilot.
+- Every main page exists.
+- Navigation works.
+- The visual system is consistent.
+- The Overview is premium and immediately understandable.
+- Fix Code supports a complete simulated workflow.
+- Verify Answer supports a complete simulated workflow.
+- The code diff is beautiful and readable.
+- Claim evidence is understandable.
+- Run history is coherent.
+- Settings persist locally.
+- No important buttons are broken.
+- No real API keys are required.
+- No backend is required.
+- All simulated outputs are clearly labeled.
+- The code is structured for future integration.
+- The application renders without build errors.
+- The design feels like a real, premium B2B SaaS product.
+
+==================================================
+20. FINAL INSTRUCTIONS
+==================================================
+
+Treat this as a serious product launch foundation.
+
+Do not simply create a quick prototype.
+
+Create a genuinely excellent frontend.
+
+Be ambitious about product quality.
+
+Be restrained about visual complexity.
+
+Pay exceptional attention to spacing, typography, component proportions, information hierarchy, and interaction design.
+
+The final result should feel:
+
+Beautiful.
+Simple.
+Fast.
+Trustworthy.
+Modern.
+Technically sophisticated.
+
+A developer should be able to open PatchPilot and immediately understand how to use it.
+
+Build the complete application now.
+
+When finished, summarize:
+
+1. Pages implemented.
+2. Important reusable components.
+3. Demo interactions implemented.
+4. State management approach.
+5. What is intentionally mocked.
+6. What will need to be connected during backend development.
+
+Ensure the application builds and runs successfully.
