@@ -41,6 +41,9 @@ The legacy model object's `estimatedCost` is not an invoice and must not be
 displayed as an actual charge.
 Strict runs stop further model work if complete token usage is missing, rather
 than pretending an unknown token count is zero or allowing an unbounded run.
+They also return primary provider failures explicitly rather than retrying an
+unpriced application fallback. Legacy web callers retain their existing fallback
+behavior. Gateway-internal retries/fees require provider-side budget controls.
 
 Configuration requires `BIFROST_BASE_URL`, a genuinely configured
 `BIFROST_MODEL`, `BIFROST_API_KEY` if gateway authentication is enabled, the

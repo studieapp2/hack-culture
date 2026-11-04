@@ -152,6 +152,9 @@ export class BifrostService {
     try {
       return await this.dispatchCall(messages, primaryModel, options, startTime, false);
     } catch (primaryErr: any) {
+      // Strict diagnosis must not hide an unreported failed attempt behind an
+      // unpriced fallback. Legacy web callers retain their configured fallback.
+      if (options.runBudget?.requireReportedUsage) throw primaryErr;
       // If fallback model is configured and the error is recoverable (e.g. rate limit, 5xx, or model not found)
       if (
         serverConfig.bifrostFallbackModel &&

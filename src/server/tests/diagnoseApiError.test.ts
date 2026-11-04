@@ -312,3 +312,30 @@ test('Strict requests bypass cached sources and perform actual-to-fixture retrie
   assert.equal(first.filter((url) => url.includes('api.tavily.com/search')).length, 1);
   assert.equal(second.filter((url) => url.includes('api.tavily.com/search')).length, 1);
 }));
+
+test('Strict raw bearer credentials and signed URLs are rejected before external dispatch', () => isolated(async () => {
+  let calls = 0;
+  globalThis.fetch = (async () => { calls++; throw new Error('Unexpected request'); }) as typeof fetch;
+  for (const code of [
+    'Authorization: Bearer fixtureCredentialToken123456',
+    'const url = "https://storage.example.org/file?X-Amz-Signature=fixtureSignature123456";'
+  ]) {
+    const result = await diagnoseApiError({ error: 'API request failed', code });
+    assert.equal(result.errors[0].code, 'INVALID_INPUT');
+    assert.ok(!JSON.stringify(result).includes('fixtureCredential'));
+    assert.ok(!JSON.stringify(result).includes('fixtureSignature'));
+  }
+  assert.equal(calls, 0);
+}));
+
+test('Strict provider failures do not retry an unpriced fallback with unknown failed-call usage', () => isolated(async () => {
+  serverConfig.bifrostFallbackModel = 'unpriced-fixture-fallback';
+  let calls = 0;
+  globalThis.fetch = (async () => { calls++; return response({}, 503); }) as typeof fetch;
+  const result = await diagnoseApiError(input);
+  assert.equal(result.errors[0].code, 'PROVIDER_ERROR');
+  assert.equal(result.errors[0].provider, 'bifrost');
+  assert.equal(result.usage.modelCalls, 1);
+  assert.equal(result.usage.actualCostUsd, null);
+  assert.equal(calls, 1);
+}));
