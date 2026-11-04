@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { spawn } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -129,4 +130,20 @@ test('Actual built stdio runtime discovers tool and honestly reports missing ent
     assert.equal(logs.includes(input.error), false);
     assert.equal(data(response).diagnosis, undefined);
   } finally { await client.close(); }
+});
+
+test('Actual stdio process exits cleanly when host closes stdin', async () => {
+  const child = spawn(process.execPath, ['build/mcp/index.js'], { stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '';
+  child.stdout.on('data', chunk => { stdout += String(chunk); });
+  const exited = new Promise<number | null>((resolve, reject) => {
+    child.once('error', reject);
+    child.once('exit', resolve);
+  });
+  const guard = setTimeout(() => child.kill('SIGKILL'), 3000);
+  try {
+    child.stdin.end();
+    assert.equal(await exited, 0);
+    assert.equal(stdout, '');
+  } finally { clearTimeout(guard); }
 });

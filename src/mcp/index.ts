@@ -10,7 +10,7 @@ async function main() {
   const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
   const { createMcpServer } = await import('./server');
   const server = createMcpServer();
-  const transport = new StdioServerTransport();
+  const transport = new StdioServerTransport(process.stdin, process.stdout, { maxBufferSize: 196_608 });
   let closing = false;
   const close = async () => {
     if (closing) return;
@@ -21,6 +21,8 @@ async function main() {
   };
   await server.connect(transport);
   transport.onclose = () => { void close(); };
+  process.stdin.once('end', () => { void close(); });
+  process.stdin.once('error', () => { void close(); });
   process.once('SIGINT', () => { void close(); });
   process.once('SIGTERM', () => { void close(); });
 }
