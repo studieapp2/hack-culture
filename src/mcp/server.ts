@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { BackendUnavailable, diagnoseWithBackend, type DiagnoseEngine } from './backend';
-import { diagnosisInput } from './schema';
+import { diagnosisInput, diagnosisResult } from './schema';
 
 const messages = {
   BACKEND_UNAVAILABLE: 'Backend diagnoseApiError is unavailable. Complete and approve the backend entrypoint contract.',
@@ -60,20 +60,14 @@ export function createMcpServer(engine: DiagnoseEngine = diagnoseWithBackend, ti
           timer = setTimeout(() => reject(new Error('MCP_TIMEOUT')), timeoutMs);
         }),
       ]);
-      if (!result || typeof result.diagnosis !== 'string' ||
-        !Array.isArray(result.claims) || !Array.isArray(result.tests) || !result.usage ||
-        result.tests.some(test => test.status !== 'not_run')) {
+      if (!diagnosisResult.safeParse(result).success) {
         return failure('INVALID_BACKEND_RESULT');
       }
-      // Do not relabel model recommendations as verified. Claims retain backend statuses.
-      const data = redact({
-        status: result.claims.length && result.claims.every(claim => claim.status === 'VERIFIED')
-          ? 'evidence_available' : 'insufficient_evidence',
-        ...result,
-        sources: Array.from(new Map(result.claims.flatMap(claim => claim.sources)
-          .map(source => [source.url, source])).values()),
-      }) as Record<string, unknown>;
-      return { content: [{ type: 'text', text: JSON.stringify(data) }], structuredContent: data };
+      // Validate without replacing the original with Zod's stripped output.
+      // Keep exact engine status, evidence, errors, null billing and metadata.
+      const data = redact(result) as Record<string, unknown>;
+      return { ...(data.status === 'error' ? { isError: true } : {}),
+        content: [{ type: 'text', text: JSON.stringify(data) }], structuredContent: data };
     } catch (error) {
       if (error instanceof BackendUnavailable) return failure('BACKEND_UNAVAILABLE');
       const message = error instanceof Error ? error.message : '';
