@@ -82,3 +82,19 @@ Do not raise the ceiling without approval.
 No new public HTTP route or code-execution facility is added. The existing
 dashboard HTTP API has no authentication/ownership isolation and must not be
 exposed as a multi-user public service without a verified access boundary.
+
+Tavily can be validated independently when the Bifrost gateway is not reachable:
+
+```sh
+bun node_modules/tsx/dist/cli.mjs src/server/tests/liveTavilyValidation.ts
+```
+
+This runner uses the real securely supplied `TAVILY_API_KEY`, one basic search
+and at most one basic extraction. It reserves $0.04 (at most two API credits)
+against the live-test budget, records returned usage credits and URLs, and
+does not make model calls or execute submitted code. Currency charges remain
+unreported; the published pay-as-you-go estimate is not an invoice.
+
+`http://localhost:8080/v1` refers to the machine running the engine. If Bifrost
+is on a developer's computer instead, connect that computer or supply a securely
+reachable gateway URL. Do not substitute an empty/demo gateway for a real model.
