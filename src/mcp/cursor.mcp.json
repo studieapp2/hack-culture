@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "patchpilot": {
+      "type": "stdio",
+      "command": "/usr/bin/node",
+      "args": ["/workspace/hack-culture/build/mcp/index.js"]
+    }
+  }
+}
