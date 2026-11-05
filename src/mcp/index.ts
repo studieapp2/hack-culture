@@ -10,7 +10,8 @@ async function main() {
   const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
   const { createMcpServer } = await import('./server');
   const server = createMcpServer();
-  const transport = new StdioServerTransport(process.stdin, process.stdout, { maxBufferSize: 196_608 });
+  // Covers valid JSON escaping/UTF-8 expansion of the 120,000-character input.
+  const transport = new StdioServerTransport(process.stdin, process.stdout, { maxBufferSize: 1_048_576 });
   let closing = false;
   const close = async () => {
     if (closing) return;

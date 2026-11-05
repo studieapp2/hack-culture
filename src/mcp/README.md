@@ -1,17 +1,15 @@
-# PatchPilot local MCP — integration pending
+# PatchPilot local MCP — strict engine adapter
 
 Base: `a74ec2df3587e5c4f4c2dd21f1f10e04647a111d`, published on
 `fix/patchpilot-e2e-20261104`. Implementation branch: `feat/mcp-cursor`.
 Official TypeScript MCP SDK: **1.32.2**, stdio only.
 
-## Contract coordination required
+## Published v1 contract and workstream coordination
 
-The published engine exports `fixCodeService.analyzeAndFix`, not the requested
-`diagnoseApiError`. No approved shared API contract was present.
-The MCP adapter does **not** silently call the older function.
-
-Proposed boundary for Knut to approve and export from
-`src/server/services/fixCodeService.ts`:
+Knut published contract v1 at `6a521b9`, implemented on backend branch
+`feat/engine-live-diagnosis` at `590b916`. The canonical contract lives in
+`src/server/diagnoseApiError.contract.ts`; its entrypoint is exported from
+`src/server/services/diagnoseApiError.ts`:
 
 ```ts
 diagnoseApiError(input: {
@@ -19,21 +17,30 @@ diagnoseApiError(input: {
   code: string;
   fileName?: string;
   language?: string;
-}): Promise<FixCodeResult>
+}): Promise<DiagnoseApiErrorResult>
 ```
 
-`FixCodeResult` is the existing engine type: diagnosis, claims, optional patch,
-tests and usage. This proposal is NOT an approved contract. If the strict
-entrypoint uses a different module/type, update only `src/mcp/backend.ts` after
-agreement. Until then tool calls return `BACKEND_UNAVAILABLE`.
-No backend-owned files were changed.
+The MCP validator follows this published contract without modifying it.
+Results are preserved, except credential redaction: `contractVersion: "1"`,
+status `supported` / `insufficient_evidence` / `error`, diagnosis object or null,
+claims, original sources, optional `proposedPatch`, tests, usage, errors and safety.
+No deduplicating or relabelling is applied. Unknown billing remains null.
+Engine `error` results set MCP `isError: true`; insufficient evidence is returned
+as an honest result, not a fabricated successful fix.
 
-The MCP envelope adds deduplicated sources from existing claim sources and
-`evidence_available` (all claims VERIFIED) or `insufficient_evidence`; neither
-status asserts that a patch is executed or fully verified. Backend findings,
-usage and claim statuses are preserved except output credential redaction.
-Tests other than `not_run` are rejected because this local integration authorizes
-no test execution. Contract approval must include these envelope choices.
+Tests other than `not_run`, unsafe execution flags, negative usage and unsupported
+patches are rejected. A supported pending patch still requires host-agent human
+review and is not an executed or tested fix.
+
+The original shared-base checkout lacks this new backend file. Keep both
+workstreams separate until their integration is reviewed. The MCP adapter can
+load the actual published engine from a separate local checkout using the
+trusted startup setting `PATCHPILOT_ENGINE_MODULE`, an absolute local file path.
+That setting cannot be supplied through tool input and never accepts remote URLs.
+The default path is this repository's `src/server/services/diagnoseApiError.ts`.
+Missing files/exports return `BACKEND_UNAVAILABLE`; no older-engine fallback exists.
+No backend-owned files were changed. Joint contract/base approval remains a
+team integration gate; this adapter test does not constitute approval or a merge.
 
 ## Build and run
 
@@ -46,6 +53,7 @@ bun run mcp:build
 node /workspace/hack-culture/build/mcp/index.js
 ```
 
+The existing `tsx` dependency loads the real TypeScript engine in-process.
 The server waits for MCP JSON-RPC on stdin; it is not a terminal chat.
 Launch the Node executable directly from Cursor, not a shell or Bun script.
 Stdout is protocol-only; diagnostics are suppressed with generic stderr messages.
@@ -70,6 +78,10 @@ Backend secrets: `BIFROST_BASE_URL`, `BIFROST_MODEL`, optional `BIFROST_API_KEY`
 Set them securely in the environment inherited by the server. Alternatively
 use a private `.env` with `DOTENV_CONFIG_PATH` pointing to its absolute path
 in the MCP config's `env` object; dotenv loads it in the existing backend.
+If the engine is in another checkout, add `PATCHPILOT_ENGINE_MODULE` with its
+actual absolute entrypoint path to that same `env` object. Keep both checkouts'
+dependencies installed and versions pinned. This is a local shared engine,
+not a REST proxy or duplicate AI implementation.
 Never use frontend `VITE_*` variables. Never paste credentials into chat.
 Existing backend `MAX_*_PER_RUN` and `REQUEST_TIMEOUT_MS` settings still apply.
 Provider-side caps are needed for actual billing guarantees.
@@ -80,13 +92,16 @@ error with the relevant snippet and optionally fileName/language.
 Review original source links and uncertainty; require human review before the
 host agent makes consequential changes. The MCP tool never makes those changes.
 
-Input is strict: error 1–16,384 characters, code 1–131,072 characters, both
-nonblank; optional fileName 1–256 and language 1–64, no newlines/NUL.
+Input follows v1: error 1–20,000 characters, code 1–100,000 characters, both
+nonblank; optional fileName 1–300, project-relative with no traversal, absolute
+paths or control characters; optional language 1–100, nonblank.
 Unknown fields are rejected. Code is never read from a supplied fileName.
 
-Errors: `BACKEND_UNAVAILABLE`, `CONFIGURATION_ERROR`, `PROVIDER_FAILURE`,
+MCP boundary errors: `BACKEND_UNAVAILABLE`, `CONFIGURATION_ERROR`, `PROVIDER_FAILURE`,
 `INVALID_BACKEND_RESULT`, `TIMEOUT`, `BUSY`. Invalid inputs use SDK validation
 errors and never reach the engine. Raw provider error messages are not returned.
+The real strict engine separately returns its canonical structured `errors`,
+including `MISSING_CONFIGURATION`, `PROVIDER_ERROR`, `BUDGET_EXCEEDED` and `TIMEOUT`.
 Deadline is 95 seconds. A response timeout does not cancel the engine: the
 single-run lock remains until settlement. Disconnect/shutdown terminates the
 dedicated process. This is not a remote authenticated production service.
@@ -101,17 +116,32 @@ bun run lint
 bun run build
 ```
 
-MCP tests include an actual Node stdio subprocess/client invocation.
+MCP tests include actual Node stdio subprocess/client invocations.
 Success responses are deterministic test doubles only, never runtime fallbacks.
-The subprocess currently returns the real missing-entrypoint error.
-Cursor discovery and real Bifrost + Tavily diagnosis remain untested until the
-approved strict backend export, credentials and a Cursor-running machine exist.
-Backend estimated costs are not provider invoices; MCP does not improve their accuracy.
+With no configured engine checkout the subprocess returns missing-entrypoint error.
+For a real strict-engine configuration-path test:
 
-Next acceptance: Knut publishes the strict export and agrees this contract;
-review that commit, update the adapter if needed, rebuild on the Cursor machine,
-invoke with an actual SDK error, and record sources, actual usage and failures.
-Do not claim success from the automated test-double path.
+```sh
+PATCHPILOT_TEST_ENGINE_MODULE=/absolute/local/engine/src/server/services/diagnoseApiError.ts bun run test:mcp
+```
+
+This test deliberately clears provider credentials and disables dotenv loading.
+It invokes the actual engine and expects canonical `MISSING_CONFIGURATION`,
+no sources, zero model calls and no code execution. The path above is a command
+template, not a verified machine configuration.
+
+Recorded check: an isolated copy of published engine `590b916` was invoked
+through the actual stdio process; all 15 MCP tests passed, including this
+unmocked error path. This is MCP-to-engine proof, NOT live provider success.
+Without `PATCHPILOT_TEST_ENGINE_MODULE`, 14 tests run and that integration check
+is explicitly skipped.
+
+Cursor discovery and a Bifrost + Tavily-backed diagnosis remain untested.
+Next acceptance: approve the shared integration contract/base, configure genuine
+gateway/model/Tavily credentials and price bounds, rebuild on the Cursor machine,
+invoke with an actual SDK error, and record sources, usage and failures.
+Do not claim success from the automated test-double or missing-configuration path.
+Actual invoice costs remain unknown unless the provider reports them.
 
 ## Later hosts and optional usage guidance
 
@@ -120,6 +150,28 @@ absolute command/args; Claude Code can register it as a local stdio MCP server.
 Neither host has been tested here. Verify their installed client's configuration
 syntax rather than assuming Cursor JSON is interchangeable.
 No extra server implementation is required.
+
+Official references: [Cursor MCP](https://cursor.com/docs/mcp),
+[Codex MCP](https://developers.openai.com/codex/mcp),
+[Claude Code MCP](https://code.claude.com/docs/en/mcp).
+Cursor supports project `.cursor/mcp.json` and global MCP configuration; the
+checked-in example declares `"type": "stdio"`. Codex uses
+`[mcp_servers.patchpilot]` in `config.toml`, not Cursor's JSON schema.
+
+On this sandbox's paths, registration commands are:
+
+```sh
+codex mcp add patchpilot -- /usr/bin/node /workspace/hack-culture/build/mcp/index.js
+codex mcp list
+claude mcp add --transport stdio patchpilot -- /usr/bin/node /workspace/hack-culture/build/mcp/index.js
+claude mcp list
+```
+
+These are documented commands, NOT commands executed or client integrations
+verified here. Replace paths with the real workstation paths before use there.
+Pass trusted engine/config paths through each host's environment settings.
+Codex's `/mcp` shows active MCP servers; Claude Code's `/mcp` shows connection
+status. Discovery alone is not evidence of a genuine provider-backed tool result.
 
 Optional agent instruction, only after live acceptance:
 
