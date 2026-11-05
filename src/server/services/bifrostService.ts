@@ -1,6 +1,7 @@
 import { serverConfig, IntegrationHealth } from '../config';
 import { MeasuredTokenUsage } from '../types';
 import { RunBudget, recordUsage } from './runBudget';
+import { ProviderError } from './providerError';
 
 export interface BifrostMessage {
   role: 'system' | 'user' | 'assistant';
@@ -19,6 +20,7 @@ export interface BifrostCompletionOptions {
     reservedModelCalls?: number;
     deadlineAt?: number;
     usage?: MeasuredTokenUsage;
+    requireReportedUsage?: boolean;
   };
 }
 
@@ -46,7 +48,8 @@ export class BifrostService {
   public isConfigured(): boolean {
     try {
       const url = new URL(this.baseUrl || '');
-      return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password;
+      return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password &&
+        !url.search && !url.hash;
     } catch {
       return false;
     }
@@ -79,8 +82,6 @@ export class BifrostService {
         headers,
         signal: controller.signal
       });
-
-      clearTimeout(timeout);
 
       if (resp.status === 401 || resp.status === 403) {
         return {
@@ -151,15 +152,16 @@ export class BifrostService {
     try {
       return await this.dispatchCall(messages, primaryModel, options, startTime, false);
     } catch (primaryErr: any) {
+      // Strict diagnosis must not hide an unreported failed attempt behind an
+      // unpriced fallback. Legacy web callers retain their configured fallback.
+      if (options.runBudget?.requireReportedUsage) throw primaryErr;
       // If fallback model is configured and the error is recoverable (e.g. rate limit, 5xx, or model not found)
       if (
         serverConfig.bifrostFallbackModel &&
         serverConfig.bifrostFallbackModel !== primaryModel &&
         (primaryErr.status === 429 || primaryErr.status === 404 || primaryErr.status >= 500)
       ) {
-        console.warn(
-          `Primary model ${primaryModel} failed (${primaryErr.message}). Initiating Bifrost fallback to ${serverConfig.bifrostFallbackModel}...`
-        );
+        console.warn('Bifrost primary model request failed; attempting the configured fallback.');
         return await this.dispatchCall(
           messages,
           serverConfig.bifrostFallbackModel,
@@ -184,16 +186,34 @@ export class BifrostService {
     const budget = options.runBudget;
     const requestTimeout = Math.min(serverConfig.requestTimeoutMs,
       budget?.deadlineAt === undefined ? serverConfig.requestTimeoutMs : budget.deadlineAt - Date.now());
-    if (requestTimeout <= 0) throw new Error('The 90-second run deadline was reached. No further model request was sent.');
+    if (requestTimeout <= 0) throw new ProviderError('bifrost', 'TIMEOUT', 'The run deadline was reached. No further model request was sent.');
     if (budget && budget.callCount >= serverConfig.maxModelCallsPerRun - (budget.reservedModelCalls || 0)) {
-      throw new Error('Model call budget exceeded. No additional model request was sent.');
+      throw new ProviderError('bifrost', 'BUDGET_EXCEEDED', 'Model call budget exceeded. No additional model request was sent.');
     }
     const remainingTokens = serverConfig.maxTokensPerRun - (budget?.totalTokensUsed || 0);
-    if (remainingTokens <= 0) throw new Error('Token budget exhausted. No additional model request was sent.');
+    if (remainingTokens <= 0) throw new ProviderError('bifrost', 'BUDGET_EXCEEDED', 'Token budget exhausted. No additional model request was sent.');
     if (budget?.usage && budget.usage.estimatedCost >= serverConfig.maxCostPerRunUsd) {
       throw new Error('Estimated cost budget exhausted. Actual billing depends on gateway pricing.');
     }
-    if (budget) budget.callCount++;
+    // Conservative local upper bound; gateway-added prompt tokens are reported later.
+    const promptBound = messages.reduce((sum, message) =>
+      sum + Buffer.byteLength(message.content, 'utf8') + 256, 256);
+    const outputLimit = Math.min(options.maxTokens ?? 1500, remainingTokens - promptBound);
+    if (outputLimit <= 0) {
+      throw new ProviderError('bifrost', 'BUDGET_EXCEEDED',
+        'The input exceeds the remaining token budget. Reduce the code/evidence snippet.');
+    }
+    const configuredRates = model === serverConfig.bifrostModel &&
+      serverConfig.bifrostInputUsdPerMillion !== undefined && serverConfig.bifrostOutputUsdPerMillion !== undefined;
+    const inputRate = configuredRates ? serverConfig.bifrostInputUsdPerMillion! : 0.15;
+    const outputRate = configuredRates ? serverConfig.bifrostOutputUsdPerMillion! : 0.60;
+    if (budget?.usage && configuredRates) {
+      const maximumEstimatedCost = (promptBound * inputRate + outputLimit * outputRate) / 1000000;
+      if (budget.usage.estimatedCost + maximumEstimatedCost > serverConfig.maxCostPerRunUsd) {
+        throw new ProviderError('bifrost', 'BUDGET_EXCEEDED',
+          'The next request would exceed the configured estimated-cost limit. No model request was sent.');
+      }
+    }
     const cleanBaseUrl = this.baseUrl!.replace(/\/+$/, '');
     const endpoint = cleanBaseUrl.endsWith('/chat/completions')
       ? cleanBaseUrl
@@ -210,7 +230,7 @@ export class BifrostService {
       model,
       messages,
       temperature: options.temperature ?? 0.1,
-      max_tokens: Math.min(options.maxTokens ?? 1500, remainingTokens)
+      max_tokens: outputLimit
     };
 
     if (options.responseFormat === 'json_object') {
@@ -221,6 +241,7 @@ export class BifrostService {
     const timeout = setTimeout(() => controller.abort(), requestTimeout);
 
     try {
+    if (budget) budget.callCount++;
     const resp = await fetch(endpoint, {
       method: 'POST',
       headers,
@@ -228,21 +249,22 @@ export class BifrostService {
       signal: controller.signal
     });
 
-    clearTimeout(timeout);
-
     if (!resp.ok) {
-      throw Object.assign(new Error(`Bifrost model request failed with status ${resp.status}. Check gateway credentials, model configuration and quota.`),
-        { status: resp.status });
+      await resp.body?.cancel();
+      throw new ProviderError('bifrost', 'PROVIDER_ERROR',
+        `Bifrost model request failed with status ${resp.status}. Check gateway credentials, model configuration and quota.`,
+        resp.status);
     }
 
-    const data = await resp.json();
+    let data: any;
+    try { data = await resp.json(); } catch {
+      if (controller.signal.aborted) throw new ProviderError('bifrost', 'TIMEOUT', 'Bifrost response timed out (request aborted).');
+      throw new ProviderError('bifrost', 'INVALID_PROVIDER_RESPONSE', 'Bifrost returned an unreadable JSON response.', undefined, false);
+    }
     const latencyMs = Date.now() - startTime;
 
-    const content = data.choices?.[0]?.message?.content;
-    if (typeof content !== 'string' || !content.trim()) {
-      throw new Error('Bifrost returned no valid completion content.');
-    }
-    const rawUsage: BifrostUsageRaw = data.usage || {};
+    const content = data?.choices?.[0]?.message?.content;
+    const rawUsage: BifrostUsageRaw = data?.usage || {};
 
     const validCount = (value: unknown): value is number =>
       typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
@@ -251,8 +273,8 @@ export class BifrostService {
     const totalTokens = Math.max(validCount(rawUsage.total_tokens) ? rawUsage.total_tokens : 0,
       promptTokens + completionTokens);
 
-    // Conservative standard estimate: $0.15/1M prompt, $0.60/1M completion
-    const estimatedCost = (promptTokens * 0.00000015) + (completionTokens * 0.0000006);
+    // Retain the legacy UI estimate, but explicitly distinguish it from known pricing.
+    const estimatedCost = (promptTokens * inputRate + completionTokens * outputRate) / 1000000;
 
     const usage: MeasuredTokenUsage = {
       inputTokens: promptTokens,
@@ -261,13 +283,24 @@ export class BifrostService {
       estimatedCost: Number(estimatedCost.toFixed(6)),
       currency: 'USD',
       isMeasured: validCount(rawUsage.prompt_tokens) && validCount(rawUsage.completion_tokens),
-      model,
-      provider: data.model || 'bifrost-gateway',
+      model: typeof data?.model === 'string' ? data.model : model,
+      requestedModel: model,
+      provider: 'bifrost-gateway',
+      usageReported: validCount(rawUsage.prompt_tokens) || validCount(rawUsage.completion_tokens) || validCount(rawUsage.total_tokens),
+      costBasis: configuredRates ? 'configured_rates' : 'generic_estimate',
       latencyMs,
       fallbackUsed: isFallback,
       fallbackModel: isFallback ? model : undefined
     };
     if (budget?.usage) recordUsage(budget as RunBudget, usage);
+    if (budget?.requireReportedUsage && !usage.isMeasured) {
+      throw new ProviderError('bifrost', 'BUDGET_EXCEEDED',
+        'The gateway did not report complete token usage. Further requests were stopped to keep the run budget bounded.');
+    }
+    if (typeof content !== 'string' || !content.trim() || data?.choices?.[0]?.finish_reason === 'length') {
+      throw new ProviderError('bifrost', 'INVALID_PROVIDER_RESPONSE',
+        'Bifrost returned empty or truncated completion content. No result was accepted.', undefined, false);
+    }
 
     let rawJson: any = undefined;
     if (options.responseFormat === 'json_object') {
@@ -280,10 +313,10 @@ export class BifrostService {
           try {
             rawJson = JSON.parse(jsonMatch[1] || jsonMatch[0]);
           } catch {
-            throw new Error('Bifrost model response could not be parsed as valid JSON.');
+            throw new ProviderError('bifrost', 'INVALID_PROVIDER_RESPONSE', 'Bifrost model response could not be parsed as valid JSON.', undefined, false);
           }
         } else {
-          throw new Error('Bifrost model failed to produce required JSON schema output.');
+          throw new ProviderError('bifrost', 'INVALID_PROVIDER_RESPONSE', 'Bifrost model failed to produce required JSON schema output.', undefined, false);
         }
       }
     }
@@ -293,6 +326,10 @@ export class BifrostService {
       usage,
       rawJson
     };
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      if (controller.signal.aborted) throw new ProviderError('bifrost', 'TIMEOUT', 'Bifrost request timed out (request aborted).');
+      throw new ProviderError('bifrost', 'PROVIDER_ERROR', 'Could not reach the Bifrost model provider.');
     } finally {
       clearTimeout(timeout);
     }

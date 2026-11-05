@@ -1,5 +1,8 @@
 import { serverConfig, IntegrationHealth } from '../config';
 import { VerifiedSource } from '../types';
+import { RunBudget } from './runBudget';
+import { ProviderError } from './providerError';
+import { containsCredentials, redactProviderSecrets } from './sensitiveData';
 
 export interface TavilySearchOptions {
   searchDepth?: 'basic' | 'advanced';
@@ -7,6 +10,7 @@ export interface TavilySearchOptions {
   includeDomains?: string[];
   excludeDomains?: string[];
   timeoutMs?: number;
+  bypassCache?: boolean;
 }
 
 export interface TavilyRawSearchResult {
@@ -20,6 +24,7 @@ export interface TavilyRawSearchResult {
 export interface TavilyRawResponse {
   results: TavilyRawSearchResult[];
   query: string;
+  usage?: { credits?: number };
 }
 
 export interface TavilyRawExtractResult {
@@ -30,6 +35,7 @@ export interface TavilyRawExtractResult {
 export interface TavilyRawExtractResponse {
   results: TavilyRawExtractResult[];
   failed_results: Array<{ url: string; error: string }>;
+  usage?: { credits?: number };
 }
 
 export class TavilyService {
@@ -72,8 +78,6 @@ export class TavilyService {
         signal: controller.signal
       });
 
-      clearTimeout(timeout);
-
       if (resp.status === 401 || resp.status === 403) {
         return {
           configured: true,
@@ -97,6 +101,10 @@ export class TavilyService {
           error: `Tavily API responded with status ${resp.status}`
         };
       }
+      const data = await resp.json();
+      if (!Array.isArray(data?.results)) {
+        return { configured: true, status: 'provider_error', error: 'Tavily returned an invalid search response.' };
+      }
 
       return {
         configured: true,
@@ -107,7 +115,7 @@ export class TavilyService {
       return {
         configured: true,
         status: 'disconnected',
-        error: `Failed to connect to Tavily: ${err?.message || 'Network error'}`
+        error: err?.name === 'AbortError' ? 'Tavily health check timed out.' : 'Could not reach a valid Tavily search endpoint.'
       };
     } finally {
       clearTimeout(timeout);
@@ -133,7 +141,8 @@ export class TavilyService {
    */
   public async searchSources(
     query: string,
-    options: TavilySearchOptions = {}
+    options: TavilySearchOptions = {},
+    budget?: RunBudget
   ): Promise<VerifiedSource[]> {
     if (!this.isConfigured()) {
       throw new Error(
@@ -150,8 +159,8 @@ export class TavilyService {
     const cacheKey = JSON.stringify([cleanQuery, options.searchDepth || 'basic',
       options.maxResults || 3, options.includeDomains || [], options.excludeDomains || []]);
     const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
-      return cached.data;
+    if (!options.bypassCache && cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+      return cached.data.map((source) => ({ ...source }));
     }
 
     const maxResults = Math.max(1, Math.min(options.maxResults || 3, 20));
@@ -161,6 +170,7 @@ export class TavilyService {
     const timeout = setTimeout(() => controller.abort(), requestTimeout);
 
     try {
+      if (budget) budget.searchRequests++;
       const response = await fetch('https://api.tavily.com/search', {
         method: 'POST',
         headers: {
@@ -172,29 +182,39 @@ export class TavilyService {
           search_depth: options.searchDepth || 'basic',
           max_results: maxResults,
           include_domains: options.includeDomains,
-          exclude_domains: options.excludeDomains
+          exclude_domains: options.excludeDomains,
+          include_usage: true
         }),
         signal: controller.signal
       });
 
-      clearTimeout(timeout);
-
       if (!response.ok) {
+        await response.body?.cancel();
         if (response.status === 429) {
-          throw new Error('Tavily API rate limit reached. Please wait before retrying.');
+          throw new ProviderError('tavily', 'PROVIDER_ERROR', 'Tavily API rate limit reached. Please wait before retrying.', 429);
         }
         if (response.status === 401 || response.status === 403) {
-          throw new Error('Tavily authorization failed. Please check your TAVILY_API_KEY.');
+          throw new ProviderError('tavily', 'PROVIDER_ERROR', 'Tavily authorization failed. Please check your TAVILY_API_KEY.', response.status);
         }
-        throw new Error(`Tavily search request failed with status ${response.status}.`);
+        throw new ProviderError('tavily', 'PROVIDER_ERROR', `Tavily search request failed with status ${response.status}.`, response.status);
       }
 
       const data = (await response.json()) as TavilyRawResponse;
+      if (budget && typeof data?.usage?.credits === 'number' &&
+        Number.isFinite(data.usage.credits) && data.usage.credits >= 0) {
+        budget.searchCredits += data.usage.credits;
+        budget.searchUsageReports++;
+      }
       const retrievedAt = new Date().toISOString();
 
-      if (!Array.isArray(data.results)) throw new Error('Tavily returned an invalid search response.');
+      if (!Array.isArray(data?.results)) throw new ProviderError('tavily', 'INVALID_PROVIDER_RESPONSE', 'Tavily returned an invalid search response.', undefined, false);
       const sources: VerifiedSource[] = data.results.filter((r) => {
-        try { return ['http:', 'https:'].includes(new URL(r.url).protocol); } catch { return false; }
+        try {
+          if (typeof r?.url !== 'string') return false;
+          const url = new URL(r.url);
+          return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password &&
+            !containsCredentials(r.url);
+        } catch { return false; }
       }).map((r, index) => {
         let publisher = 'External Reference';
         try {
@@ -206,13 +226,14 @@ export class TavilyService {
 
         return {
           id: `tavily-src-${Date.now()}-${index}`,
-          title: typeof r.title === 'string' ? r.title : 'Technical Reference',
+          title: typeof r.title === 'string' ? redactProviderSecrets(r.title) : 'Technical Reference',
           url: r.url,
           publisher,
-          publishedAt: r.published_date,
+          publishedAt: typeof r.published_date === 'string' && Number.isFinite(Date.parse(r.published_date))
+            ? r.published_date : undefined,
           retrievedAt,
-          excerpt: typeof r.content === 'string' ? r.content.slice(0, 600).trim() : '',
-          score: r.score
+          excerpt: typeof r.content === 'string' ? redactProviderSecrets(r.content.slice(0, 600).trim()) : '',
+          score: typeof r.score === 'number' && Number.isFinite(r.score) ? r.score : undefined
         };
       });
 
@@ -223,12 +244,12 @@ export class TavilyService {
         this.cache.delete(this.cache.keys().next().value!);
       }
       this.cache.set(cacheKey, { data: sources, timestamp: Date.now() });
-      return sources;
+      return sources.map((source) => ({ ...source }));
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        throw new Error(`Tavily search timed out after ${requestTimeout}ms`);
-      }
-      throw err;
+      if (err instanceof ProviderError) throw err;
+      if (controller.signal.aborted) throw new ProviderError('tavily', 'TIMEOUT', `Tavily search timed out after ${requestTimeout}ms`);
+      if (err instanceof SyntaxError) throw new ProviderError('tavily', 'INVALID_PROVIDER_RESPONSE', 'Tavily returned unreadable JSON.', undefined, false);
+      throw new ProviderError('tavily', 'PROVIDER_ERROR', 'Could not reach the Tavily search service.');
     } finally {
       clearTimeout(timeout);
     }
@@ -237,15 +258,18 @@ export class TavilyService {
   /**
    * Extracts page content for verification using Tavily Extract API
    */
-  public async extractSources(urls: string[]): Promise<Map<string, string>> {
+  public async extractSources(
+    urls: string[],
+    options: { strict?: boolean; timeoutMs?: number; budget?: RunBudget } = {}
+  ): Promise<Map<string, string>> {
     if (!this.isConfigured()) {
       throw new Error('TAVILY_API_KEY is not configured on the server.');
     }
 
-    const validUrls = urls.filter((u) => {
+    const validUrls = Array.from(new Set(urls)).filter((u) => {
       try {
         const parsed = new URL(u);
-        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+        return ['http:', 'https:'].includes(parsed.protocol) && !parsed.username && !parsed.password;
       } catch {
         return false;
       }
@@ -256,9 +280,13 @@ export class TavilyService {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), serverConfig.requestTimeoutMs);
+    const requestTimeout = Math.min(options.timeoutMs ?? serverConfig.requestTimeoutMs, serverConfig.requestTimeoutMs);
+    if (requestTimeout <= 0) throw new ProviderError('tavily', 'TIMEOUT', 'The run deadline was reached before extraction.');
+    const timeout = setTimeout(() => controller.abort(), requestTimeout);
+    const requestedUrls = validUrls.slice(0, options.strict ? 2 : 3);
 
     try {
+      if (options.budget) options.budget.extractionRequests++;
       const response = await fetch('https://api.tavily.com/extract', {
         method: 'POST',
         headers: {
@@ -266,29 +294,42 @@ export class TavilyService {
           Authorization: `Bearer ${this.apiKey}`
         },
         body: JSON.stringify({
-          urls: validUrls.slice(0, 3)
+          urls: requestedUrls,
+          extract_depth: 'basic',
+          include_usage: true
         }),
         signal: controller.signal
       });
 
-      clearTimeout(timeout);
-
       if (!response.ok) {
-        throw new Error(`Tavily extract failed with status ${response.status}`);
+        await response.body?.cancel();
+        throw new ProviderError('tavily', 'PROVIDER_ERROR', `Tavily extract failed with status ${response.status}`, response.status);
       }
 
       const data = (await response.json()) as TavilyRawExtractResponse;
+      if (!Array.isArray(data?.results)) throw new ProviderError('tavily', 'INVALID_PROVIDER_RESPONSE', 'Tavily returned an invalid extract response.', undefined, false);
+      if (options.budget && typeof data.usage?.credits === 'number' &&
+        Number.isFinite(data.usage.credits) && data.usage.credits >= 0) {
+        options.budget.extractionCredits += data.usage.credits;
+        options.budget.extractionUsageReports++;
+      }
       const resultMap = new Map<string, string>();
 
       for (const item of data.results || []) {
-        if (item.url && item.raw_content) {
-          resultMap.set(item.url, item.raw_content.slice(0, 3000));
+        if (requestedUrls.includes(item?.url) && typeof item.raw_content === 'string' && item.raw_content.trim()) {
+          resultMap.set(item.url, redactProviderSecrets(item.raw_content.slice(0, 3000)));
         }
       }
 
       return resultMap;
     } catch (err: any) {
-      console.warn('Tavily extract warning:', err?.message);
+      if (options.strict) {
+        if (err instanceof ProviderError) throw err;
+        if (controller.signal.aborted) throw new ProviderError('tavily', 'TIMEOUT', 'Tavily extraction timed out.');
+        if (err instanceof SyntaxError) throw new ProviderError('tavily', 'INVALID_PROVIDER_RESPONSE', 'Tavily returned unreadable extract JSON.', undefined, false);
+        throw new ProviderError('tavily', 'PROVIDER_ERROR', 'Could not reach the Tavily extraction service.');
+      }
+      console.warn('Tavily extraction unavailable; no extracted content was returned.');
       return new Map();
     } finally {
       clearTimeout(timeout);
