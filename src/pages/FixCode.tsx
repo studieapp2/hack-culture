@@ -426,7 +426,8 @@ export function FixCode() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-semibold text-[#17201D]">{test.name}</span>
                       <span className="text-[11px] font-medium text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded">
-                        {test.status === 'passed' ? 'Passed' : test.status === 'failed' ? 'Failed' : 'Not run'}
+                        {test.status === 'passed' ? 'Passed' : test.status === 'failed' ? 'Failed'
+                          : test.status === 'skipped' ? 'Skipped' : 'Not run'}
                       </span>
                     </div>
                     <p className="text-[11px] text-[#66736F] leading-relaxed">

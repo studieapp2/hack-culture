@@ -1,4 +1,5 @@
 import { Run, RunType, RunStatus } from '../types/domain';
+import { normalizeUsage } from './usage';
 
 export interface BackendHealth {
   status: 'healthy' | 'degraded' | 'unconfigured';
@@ -125,8 +126,15 @@ class ApiClient {
    * Normalizes server types to domain client types
    */
   private normalizeServerRun(s: any): Run {
-    let clientStatus: RunStatus = 'completed';
-    const rawStatus = (s.status || '').toLowerCase();
+    if (!s || typeof s !== 'object' || Array.isArray(s) ||
+      typeof s.id !== 'string' || typeof s.title !== 'string' ||
+      !['code_fix', 'answer_verification'].includes(s.type) ||
+      typeof s.createdAt !== 'string' || typeof s.updatedAt !== 'string' ||
+      (s.diagnosis !== undefined && typeof s.diagnosis !== 'string')) {
+      throw new Error('The server returned an invalid run record. No successful result was inferred.');
+    }
+    let clientStatus: RunStatus = 'unknown';
+    const rawStatus = typeof s.status === 'string' ? s.status.toLowerCase() : '';
 
     if (rawStatus === 'awaiting_approval' || rawStatus === 'patch_ready') {
       clientStatus = 'awaiting_approval';
@@ -138,7 +146,7 @@ class ApiClient {
       clientStatus = 'failed';
     } else if (rawStatus === 'analyzing' || rawStatus === 'verifying' || rawStatus === 'queued') {
       clientStatus = 'in_progress';
-    } else {
+    } else if (rawStatus === 'completed') {
       clientStatus = 'completed';
     }
 
@@ -182,18 +190,13 @@ class ApiClient {
       tests: (s.tests || []).map((t: any) => ({
         id: t.id,
         name: t.name,
-        status: t.status === 'passed' ? 'passed' : t.status === 'failed' ? 'failed' : 'skipped',
+        status: t.status === 'passed' ? 'passed' : t.status === 'failed' ? 'failed'
+          : t.status === 'skipped' ? 'skipped' : 'not_run',
         output: t.output || t.reason || 'Not run',
+        reason: typeof t.reason === 'string' ? t.reason : undefined,
         simulated: false
       })),
-      usage: {
-        inputTokens: s.usage?.inputTokens || 0,
-        outputTokens: s.usage?.outputTokens || 0,
-        totalTokens: s.usage?.totalTokens || 0,
-        estimatedCost: s.usage?.estimatedCost || 0,
-        currency: s.usage?.currency || 'USD',
-        simulated: false
-      }
+      usage: normalizeUsage(s.usage)
     };
   }
 }

@@ -65,6 +65,13 @@ export function RunStatusBadge({ status, size = 'sm' }: RunStatusBadgeProps) {
           <span>Failed</span>
         </span>
       );
+    case 'unknown':
+      return (
+        <span className={`inline-flex items-center gap-1.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 ${sizeClasses}`}>
+          <HelpCircle className="w-3 h-3" />
+          <span>Unknown status</span>
+        </span>
+      );
     default:
       return null;
   }

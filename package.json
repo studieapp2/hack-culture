@@ -17,6 +17,7 @@
     "mcp:build": "esbuild src/mcp/index.ts --bundle --platform=node --format=esm --packages=external --outfile=build/mcp/index.js",
     "mcp:start": "node build/mcp/index.js",
     "test:mcp": "tsx --test src/mcp/tests/*.test.ts",
+    "test:client": "tsx --test src/services/tests/*.test.tsx",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

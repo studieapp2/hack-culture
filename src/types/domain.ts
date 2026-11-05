@@ -10,7 +10,8 @@ export type RunStatus =
   | 'approved'
   | 'rejected'
   | 'completed'
-  | 'failed';
+  | 'failed'
+  | 'unknown';
 
 export type ClaimStatus = 'verified' | 'outdated' | 'uncertain';
 
@@ -47,19 +48,25 @@ export interface Patch {
 export interface TestResult {
   id: string;
   name: string;
-  status: 'passed' | 'failed' | 'skipped';
+  status: 'passed' | 'failed' | 'skipped' | 'not_run';
   output: string;
+  reason?: string;
   simulated: boolean;
   durationMs?: number;
 }
 
 export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-  estimatedCost: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+  estimatedCost: number | null;
   currency: string;
   simulated: boolean;
+  isMeasured?: boolean;
+  incompleteModelUsage?: boolean;
+  actualCost?: number | null;
+  modelCalls?: number | null;
+  costBasis?: string;
 }
 
 export interface WorkflowStep {

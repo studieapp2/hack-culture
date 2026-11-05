@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { SAMPLE_ERROR_INPUT, SAMPLE_CODE_INPUT } from '../data/demoFixtures';
 import { RunStatusBadge } from '../components/shared/StatusBadge';
+import { formatTokens } from '../services/usage';
 import {
   Wrench,
   ShieldCheck,
@@ -205,7 +206,7 @@ export function Overview() {
                     <span>{run.type === 'code_fix' ? 'Code Fix' : 'Verification'}</span>
                     <span>·</span>
                     <span className="font-mono tabular-nums">
-                      {run.usage.totalTokens} tokens
+                      {run.usage.totalTokens === null ? 'Usage not reported' : `${formatTokens(run.usage.totalTokens)} tokens`}
                     </span>
                     <span>·</span>
                     <span>{new Date(run.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
