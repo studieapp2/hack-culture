@@ -6,6 +6,8 @@ import { normalizeUsage, formatCost, formatTokens } from '../usage';
 import { apiClient } from '../apiClient';
 import { UsageSummary, BudgetIndicator } from '../../components/shared/UsageSummary';
 import { RunStatusBadge } from '../../components/shared/StatusBadge';
+import { RunTimeline } from '../../components/runs/RunTimeline';
+import { pendingRequestSteps } from '../workflowPresentation';
 
 const measured = { inputTokens: 100, outputTokens: 20, totalTokens: 120,
   estimatedCost: 0.003, currency: 'USD', isMeasured: true, model: 'fixture' };
@@ -123,4 +125,14 @@ test('Usage and budget views never format missing accounting as zero consumption
   const budget = renderToStaticMarkup(<BudgetIndicator currentTokens={null} maxTokens={15000} />);
   assert.match(budget, /Consumption not reported/);
   assert.doesNotMatch(budget, />0%/);
+});
+
+test('Pending HTTP status does not invent backend pipeline activity', () => {
+  const steps = pendingRequestSteps();
+  assert.deepEqual(steps.map(step => step.status), ['active', 'pending']);
+  const html = renderToStaticMarkup(<RunTimeline steps={steps}
+    title="Request status" context="Transport only" isProcessing />);
+  assert.match(html, /Transport only/);
+  assert.match(html, /not yet confirmed/);
+  assert.doesNotMatch(html, /Server Orchestration|Extracting mismatch|Querying Tavily/);
 });

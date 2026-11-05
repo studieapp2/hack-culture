@@ -76,6 +76,14 @@ class ApiClient {
     return this.request<BackendHealth>('/api/health');
   }
 
+  async getReadiness(): Promise<{ status: 'ready' }> {
+    const result = await this.request<{ status?: unknown }>('/api/ready');
+    if (result?.status !== 'ready') {
+      throw new Error('The server returned an invalid readiness response.');
+    }
+    return { status: 'ready' };
+  }
+
   async listRuns(filters?: { type?: RunType | 'all'; status?: RunStatus | 'all'; search?: string }): Promise<Run[]> {
     const params = new URLSearchParams();
     if (filters?.type && filters.type !== 'all') params.append('type', filters.type);

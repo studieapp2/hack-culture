@@ -7,24 +7,28 @@ interface RunTimelineProps {
   currentStepIndex?: number;
   isProcessing?: boolean;
   className?: string;
+  title?: string;
+  context?: string;
 }
 
 export function RunTimeline({
   steps,
   currentStepIndex = steps.length - 1,
   isProcessing = false,
-  className = ''
+  className = '',
+  title = 'Workflow Pipeline',
+  context = 'Server Orchestration'
 }: RunTimelineProps) {
   return (
     <div className={`p-5 bg-white border border-[#E3EAE6] rounded-xl shadow-xs ${className}`}>
       <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[#E3EAE6]">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-[#17201D]">
-            Workflow Pipeline
+            {title}
           </span>
           <span className="text-xs text-[#66736F]">·</span>
           <span className="text-xs text-[#08775E] bg-[#EAF6F0] px-2 py-0.5 rounded font-medium">
-            Server Orchestration
+            {context}
           </span>
         </div>
         <span className="text-xs text-[#66736F] font-mono tabular-nums">
