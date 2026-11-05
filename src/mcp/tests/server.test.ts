@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -11,6 +13,9 @@ import { createMcpServer, redact } from '../server';
 const input = { error: 'Unsupported SDK parameter', code: 'client.call({ oldParameter: true });' };
 const data = (response: unknown) =>
   (response as { structuredContent: Record<string, unknown> }).structuredContent;
+const localEngineUrl = new URL('../../server/services/diagnoseApiError.ts', import.meta.url);
+const testEngineModule = process.env.PATCHPILOT_TEST_ENGINE_MODULE ||
+  (existsSync(localEngineUrl) ? fileURLToPath(localEngineUrl) : undefined);
 const fixture = () => ({
   contractVersion: '1',
   status: 'insufficient_evidence',
@@ -171,6 +176,9 @@ test('Actual built stdio runtime discovers tool and honestly reports missing ent
   const transport = new StdioClientTransport({
     command: config.mcpServers.patchpilot.command,
     args: config.mcpServers.patchpilot.args, stderr: 'pipe',
+    env: { PATCHPILOT_ENGINE_MODULE: '/workspace/patchpilot-nonexistent-test-engine.ts',
+      DOTENV_CONFIG_PATH: '/dev/null', BIFROST_BASE_URL: '', BIFROST_API_KEY: '',
+      TAVILY_API_KEY: '', BIFROST_MODEL: '' },
   });
   let logs = '';
   transport.stderr?.on('data', chunk => { logs += String(chunk); });
@@ -203,12 +211,12 @@ test('Actual stdio process exits cleanly when host closes stdin', async () => {
 });
 
 test('Actual published strict engine is called through stdio without provider fixtures', {
-  skip: !process.env.PATCHPILOT_TEST_ENGINE_MODULE,
+  skip: !testEngineModule,
 }, async () => {
   const client = new Client({ name: 'strict-engine-integration', version: '1' });
   const transport = new StdioClientTransport({
     command: process.execPath, args: ['build/mcp/index.js'], cwd: process.cwd(), stderr: 'pipe',
-    env: { PATCHPILOT_ENGINE_MODULE: process.env.PATCHPILOT_TEST_ENGINE_MODULE!,
+    env: { PATCHPILOT_ENGINE_MODULE: testEngineModule!,
       DOTENV_CONFIG_PATH: '/dev/null', BIFROST_BASE_URL: '', BIFROST_API_KEY: '',
       TAVILY_API_KEY: '', BIFROST_MODEL: '' },
   });
