@@ -11,12 +11,21 @@ export const diagnosisInput = z.object({
 }).strict();
 
 export type DiagnosisInput = z.infer<typeof diagnosisInput>;
+export const verificationInput = z.object({
+  text: z.string().min(1).max(20_000).refine(value => value.trim().length > 0),
+}).strict();
+export type VerificationInput = z.infer<typeof verificationInput>;
 
 // Runtime validator mirrors the published v1 boundary at 6a521b9; it does not
 // change or implement the shared engine contract. Preserve backend metadata.
 const nonnegative = z.number().finite().nonnegative();
 const source = z.object({
-  id: z.string(), title: z.string(), url: z.string().url(), publisher: z.string(),
+  id: z.string(), title: z.string(), url: z.string().url().refine(value => {
+    try {
+      const url = new URL(value);
+      return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password;
+    } catch { return false; }
+  }), publisher: z.string(),
   retrievedAt: z.string(), excerpt: z.string(),
 }).passthrough();
 const claim = z.object({
@@ -25,6 +34,18 @@ const claim = z.object({
   status: z.enum(['VERIFIED', 'OUTDATED', 'INSUFFICIENT_EVIDENCE', 'UNCHECKABLE', 'ERROR']),
   explanation: z.string(), sources: z.array(source),
 }).passthrough();
+export const verificationResult = z.object({
+  id: z.string(), title: z.string(), type: z.literal('answer_verification'),
+  status: z.enum(['QUEUED', 'ANALYZING', 'VERIFYING', 'PATCH_READY', 'AWAITING_APPROVAL',
+    'APPROVED', 'REJECTED', 'FAILED', 'COMPLETED']),
+  claims: z.array(claim),
+  tests: z.array(z.object({ status: z.literal('not_run') }).passthrough()),
+  usage: z.object({
+    inputTokens: nonnegative.int(), outputTokens: nonnegative.int(), totalTokens: nonnegative.int(),
+    estimatedCost: nonnegative, currency: z.literal('USD'), isMeasured: z.boolean(),
+  }).passthrough(),
+}).passthrough().refine(result => result.patch === undefined,
+  'Verification must not introduce a code patch.');
 export const diagnosisResult = z.object({
   contractVersion: z.literal('1'),
   status: z.enum(['supported', 'insufficient_evidence', 'error']),

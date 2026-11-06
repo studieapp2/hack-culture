@@ -4,11 +4,24 @@ Base: `a74ec2df3587e5c4f4c2dd21f1f10e04647a111d`, published on
 `fix/patchpilot-e2e-20261104`. Implementation branch: `feat/mcp-cursor`.
 Official TypeScript MCP SDK: **1.32.2**, stdio only.
 
-Registered tools: `diagnose_api_error` and `propose_verified_patch`. Both reuse
+Registered code tools: `diagnose_api_error` and `propose_verified_patch`. Both reuse
 the same strict engine, input contract, result validation and single in-flight
 lock. The patch tool never applies a diff and may honestly return no patch.
-`verify_technical_claims` is not implemented yet; it must reuse an approved
-backend verification boundary rather than duplicate provider logic.
+`verify_technical_claims` takes strict `{text: string}` (nonblank, up to 20,000
+characters), calls the existing local `POST /api/verify` pipeline and returns
+its exact `ServerRun`. It does not duplicate extraction or provider logic.
+It records a backend history run, so its read-only hint is false. FAILED runs
+set `isError`; completed processing does not imply every claim was verified.
+Token counters with `usage.isMeasured: false` are unreported, not measured zeros.
+All three tools share one in-flight lock and perform no user-code execution.
+
+Verification requires the backend process running. Its local API base defaults
+to `http://127.0.0.1:${PORT || 3000}/api`; set `PATCHPILOT_API_BASE_URL` in private
+server configuration for an existing non-default port. Only loopback API targets
+are supported; remote unauthenticated hosting is not enabled. Optional
+`PATCHPILOT_API_TOKEN` is server-side only. The complete engine checkout, including
+its `sensitiveData.ts` helper, must be available for credential-input validation.
+Requests containing credentials are rejected before being sent to the API.
 
 ## Published v1 contract and workstream coordination
 

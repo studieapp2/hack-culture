@@ -22,6 +22,7 @@ test('Connect starts with unverified status, not a fabricated successful integra
   assert.match(html, /Not checked/);
   assert.match(html, /diagnose_api_error/);
   assert.match(html, /propose_verified_patch/);
+  assert.match(html, /verify_technical_claims/);
   assert.doesNotMatch(html, /Connected successfully/);
 });
 

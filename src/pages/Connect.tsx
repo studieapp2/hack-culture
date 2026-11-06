@@ -3,7 +3,7 @@ import { Plug, Copy, Check, RefreshCw, ExternalLink } from 'lucide-react';
 import { PageHeader } from '../components/shared/PageHeader';
 import { apiClient } from '../services/apiClient';
 import { cursorMcpConfiguration } from '../services/mcpSetup';
-import { codeTools } from '../mcp/toolManifest';
+import { mcpTools } from '../mcp/toolManifest';
 
 export function Connect() {
   const [probe, setProbe] = useState<'idle' | 'checking' | 'ready' | 'error'>('idle');
@@ -72,6 +72,11 @@ export function Connect() {
           <code>{'bun install --frozen-lockfile\nbun run mcp:build'}</code>
         </pre>
         <p className="text-sm text-[#66736F]">
+          Keep the existing web/backend process running with <code>bun run dev</code>.
+          Claim verification uses its local <code>/api/verify</code> pipeline and records the result in Runs.
+          If it uses a non-default port, set <code>PATCHPILOT_API_BASE_URL</code> in the private server environment.
+        </p>
+        <p className="text-sm text-[#66736F]">
           Keep Bifrost and Tavily credentials server-side in your private, ignored .env file.
           Never paste keys into the dashboard or commit them. The strict engine requires both
           providers and returns explicit configuration errors when they are missing.
@@ -101,7 +106,7 @@ export function Connect() {
         <h2 className="font-semibold text-[#17201D]">3. Verify discovery, then an actual tool call</h2>
         <p className="text-sm text-[#66736F]">
           Enable the server in Cursor and confirm it discovers{' '}
-          {codeTools.map((tool, index) => (
+          {mcpTools.map((tool, index) => (
             <React.Fragment key={tool.name}>
               {index > 0 ? ' and ' : ''}<code>{tool.name}</code>
             </React.Fragment>
