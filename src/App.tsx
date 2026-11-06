@@ -6,6 +6,8 @@ import { FixCode } from './pages/FixCode';
 import { VerifyAnswer } from './pages/VerifyAnswer';
 import { Runs } from './pages/Runs';
 import { Settings } from './pages/Settings';
+import { Connect } from './pages/Connect';
+import { Benchmarks } from './pages/Benchmarks';
 
 function MainRouter() {
   const { activePage } = useApp();
@@ -13,6 +15,10 @@ function MainRouter() {
   switch (activePage) {
     case 'overview':
       return <Overview />;
+    case 'connect':
+      return <Connect />;
+    case 'benchmarks':
+      return <Benchmarks />;
     case 'fix_code':
       return <FixCode />;
     case 'verify_answer':

@@ -1,6 +1,7 @@
 import React from 'react';
 import { TokenUsage } from '../../types/domain';
 import { Coins, Hash } from 'lucide-react';
+import { formatTokens, formatCost } from '../../services/usage';
 
 interface UsageSummaryProps {
   usage: TokenUsage;
@@ -8,14 +9,13 @@ interface UsageSummaryProps {
 }
 
 export function UsageSummary({ usage, className = '' }: UsageSummaryProps) {
-  const isMeasured = (usage.totalTokens || 0) > 0;
-
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="flex items-center justify-between text-xs text-[#66736F] border-b border-[#E3EAE6] pb-2">
         <span className="font-medium text-[#17201D]">Resource Accounting</span>
         <span className="text-[11px] text-[#66736F] font-mono">
-          {usage.simulated ? 'Simulated usage' : isMeasured ? 'Reported gateway usage' : 'No token usage reported'}
+          {usage.simulated ? 'Simulated usage' : usage.incompleteModelUsage ? 'Partial reported usage'
+            : usage.isMeasured ? 'Reported gateway usage' : 'No token usage reported'}
         </span>
       </div>
 
@@ -26,7 +26,7 @@ export function UsageSummary({ usage, className = '' }: UsageSummaryProps) {
             <span>Input Tokens</span>
           </div>
           <div className="text-base font-semibold text-[#17201D] font-mono tabular-nums">
-            {usage.inputTokens.toLocaleString()}
+            {formatTokens(usage.inputTokens)}
           </div>
         </div>
 
@@ -36,7 +36,7 @@ export function UsageSummary({ usage, className = '' }: UsageSummaryProps) {
             <span>Output Tokens</span>
           </div>
           <div className="text-base font-semibold text-[#17201D] font-mono tabular-nums">
-            {usage.outputTokens.toLocaleString()}
+            {formatTokens(usage.outputTokens)}
           </div>
         </div>
       </div>
@@ -47,27 +47,28 @@ export function UsageSummary({ usage, className = '' }: UsageSummaryProps) {
           <div>
             <div className="text-xs text-[#66736F]">Estimated Cost</div>
             <div className="text-sm font-semibold text-[#17201D] font-mono tabular-nums">
-              ${usage.estimatedCost.toFixed(4)} {usage.currency}
+              {formatCost(usage.estimatedCost)} {usage.estimatedCost === null ? '' : usage.currency}
             </div>
           </div>
         </div>
         <div className="text-right">
           <div className="text-xs text-[#66736F]">Total Tokens</div>
           <div className="text-sm font-semibold text-[#17201D] font-mono tabular-nums">
-            {usage.totalTokens.toLocaleString()}
+            {formatTokens(usage.totalTokens)}
           </div>
         </div>
       </div>
 
       <p className="text-[11px] text-[#66736F] leading-relaxed">
-        Token counts reflect reported gateway usage; zero tokens does not confirm that no requests were made. Cost is an estimate.
+        Missing accounting is not zero usage. Partial token totals may exclude unreported requests.
+        Estimated costs are not provider invoices.
       </p>
     </div>
   );
 }
 
 interface BudgetIndicatorProps {
-  currentTokens: number;
+  currentTokens: number | null;
   maxTokens: number;
   className?: string;
 }
@@ -78,15 +79,17 @@ export function BudgetIndicator({
   className = ''
 }: BudgetIndicatorProps) {
   const safeMax = maxTokens > 0 ? maxTokens : 15000;
-  const percentage = Math.min(100, Math.round((currentTokens / safeMax) * 100));
-  const isNearLimit = percentage >= 80;
+  const percentage = currentTokens === null ? null
+    : Math.max(0, Math.min(100, Math.round((currentTokens / safeMax) * 100)));
+  const isNearLimit = percentage !== null && percentage >= 80;
 
   return (
     <div className={`space-y-1.5 ${className}`}>
       <div className="flex items-center justify-between text-xs">
         <span className="text-[#66736F]">Run Budget Consumption</span>
         <span className="font-mono tabular-nums font-medium text-[#17201D]">
-          {percentage}% ({currentTokens} / {safeMax} tkns)
+          {percentage === null ? `Consumption not reported / ${safeMax} tkns`
+            : `${percentage}% (${currentTokens} / ${safeMax} tkns)`}
         </span>
       </div>
       <div className="w-full h-1.5 bg-[#E3EAE6] rounded-full overflow-hidden">
@@ -94,7 +97,7 @@ export function BudgetIndicator({
           className={`h-full rounded-full transition-all duration-300 ${
             isNearLimit ? 'bg-amber-500' : 'bg-[#08775E]'
           }`}
-          style={{ width: `${percentage}%` }}
+          style={{ width: `${percentage ?? 0}%` }}
         />
       </div>
     </div>

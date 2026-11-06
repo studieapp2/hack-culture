@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { pendingRequestSteps } from '../services/workflowPresentation';
 import { useApp } from '../context/AppContext';
 import { apiClient } from '../services/apiClient';
 import { Run, Claim } from '../types/domain';
-import { SAMPLE_ANSWER_INPUT } from '../data/demoFixtures';
+import { SAMPLE_ANSWER_INPUT } from '../data/sdkSample';
 import { ClaimCard } from '../components/verification/ClaimCard';
 import { EvidencePanel } from '../components/verification/EvidencePanel';
 import { VerificationSummary } from '../components/verification/VerificationSummary';
@@ -29,7 +30,7 @@ export function VerifyAnswer() {
   const [inputText, setInputText] = useState(draftAnswer || '');
   const [validationError, setValidationError] = useState('');
   const [serverError, setServerError] = useState<string | null>(null);
-  const [workflowState, setWorkflowState] = useState<'input' | 'simulating' | 'complete'>('input');
+  const [workflowState, setWorkflowState] = useState<'input' | 'requesting' | 'complete'>('input');
   const [activeRun, setActiveRun] = useState<Run | null>(null);
   const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
 
@@ -66,7 +67,7 @@ export function VerifyAnswer() {
 
     setValidationError('');
     setServerError(null);
-    setWorkflowState('simulating');
+    setWorkflowState('requesting');
 
     try {
       const created = await apiClient.verifyAnswer({ text: inputText });
@@ -212,25 +213,21 @@ export function VerifyAnswer() {
       )}
 
       {/* STATE B: PROCESSING */}
-      {workflowState === 'simulating' && (
+      {workflowState === 'requesting' && (
         <div className="max-w-2xl mx-auto py-10">
           <div className="text-center mb-8">
             <h3 className="text-xl font-bold text-[#17201D] mb-1">
-              Verifying Factual Claims
+              Waiting for Verification Result
             </h3>
             <p className="text-xs text-[#66736F]">
-              Server is extracting verifiable statements and performing Tavily source lookups.
+              Waiting for the backend response. Claim extraction and source retrieval are not yet confirmed.
             </p>
           </div>
 
           <RunTimeline
-            steps={[
-              { id: '1', label: 'Extract claims', status: 'active', description: 'Decomposing text into atomic assertions' },
-              { id: '2', label: 'Assess freshness sensitivity', status: 'pending', description: 'Checking version and deprecation flags' },
-              { id: '3', label: 'Retrieve authoritative evidence', status: 'pending', description: 'Querying Tavily Search' },
-              { id: '4', label: 'Evaluate claims against evidence', status: 'pending', description: 'Classifying verified, outdated, and uncertain claims' },
-              { id: '5', label: 'Compile verification dossier', status: 'pending', description: 'Structuring source references' }
-            ]}
+            steps={pendingRequestSteps()}
+            title="Request status"
+            context="Transport only"
             currentStepIndex={0}
             isProcessing={true}
           />

@@ -5,13 +5,14 @@ import { Run, Claim } from '../types/domain';
 import {
   SAMPLE_ERROR_INPUT,
   SAMPLE_CODE_INPUT
-} from '../data/demoFixtures';
+} from '../data/sdkSample';
 import { RunTimeline } from '../components/runs/RunTimeline';
 import { CodeDiff } from '../components/code/CodeDiff';
 import { ClaimCard } from '../components/verification/ClaimCard';
 import { EvidencePanel } from '../components/verification/EvidencePanel';
 import { RunStatusBadge } from '../components/shared/StatusBadge';
 import { UsageSummary, BudgetIndicator } from '../components/shared/UsageSummary';
+import { pendingRequestSteps } from '../services/workflowPresentation';
 import {
   Upload,
   Sparkles,
@@ -44,7 +45,7 @@ export function FixCode() {
     health
   } = useApp();
 
-  const [workflowState, setWorkflowState] = useState<'input' | 'simulating' | 'complete'>('input');
+  const [workflowState, setWorkflowState] = useState<'input' | 'requesting' | 'complete'>('input');
   const [activeRun, setActiveRun] = useState<Run | null>(null);
 
   // Form inputs
@@ -72,8 +73,8 @@ export function FixCode() {
     setCodeInput(SAMPLE_CODE_INPUT);
     setDraftError(SAMPLE_ERROR_INPUT);
     setDraftCode(SAMPLE_CODE_INPUT);
-    setFileName('demo_client.py');
-    setDraftFileName('demo_client.py');
+    setFileName('sdk_client.ts');
+    setDraftFileName('sdk_client.ts');
     setValidationError('');
     setServerError(null);
   };
@@ -108,7 +109,7 @@ export function FixCode() {
 
     setValidationError('');
     setServerError(null);
-    setWorkflowState('simulating');
+    setWorkflowState('requesting');
 
     try {
       const created = await apiClient.startFixRun({
@@ -319,26 +320,21 @@ export function FixCode() {
       )}
 
       {/* STATE B: ANALYSIS IN PROGRESS */}
-      {workflowState === 'simulating' && (
+      {workflowState === 'requesting' && (
         <div className="max-w-2xl mx-auto py-10">
           <div className="text-center mb-8">
             <h3 className="text-xl font-bold text-[#17201D] mb-1">
               Dispatching Diagnostic Request
             </h3>
             <p className="text-xs text-[#66736F]">
-              Server is analyzing error context, checking API claims against current sources, and generating patch.
+              Waiting for the backend response. Model, search and patch activity are not yet confirmed.
             </p>
           </div>
 
           <RunTimeline
-            steps={[
-              { id: '1', label: 'Inspecting error', status: 'active', description: 'Extracting mismatch tokens' },
-              { id: '2', label: 'Identifying relevant claims', status: 'pending', description: 'Querying endpoint contract' },
-              { id: '3', label: 'Checking technical information', status: 'pending', description: 'Verifying with Tavily' },
-              { id: '4', label: 'Preparing minimal patch', status: 'pending', description: 'Generating targeted substitution' },
-              { id: '5', label: 'Reviewing test status', status: 'pending', description: 'Reporting available test results' },
-              { id: '6', label: 'Ready for approval', status: 'pending', description: 'Packaging for developer sign-off' }
-            ]}
+            steps={pendingRequestSteps()}
+            title="Request status"
+            context="Transport only"
             currentStepIndex={0}
             isProcessing={true}
           />
@@ -426,7 +422,8 @@ export function FixCode() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-semibold text-[#17201D]">{test.name}</span>
                       <span className="text-[11px] font-medium text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded">
-                        {test.status === 'passed' ? 'Passed' : test.status === 'failed' ? 'Failed' : 'Not run'}
+                        {test.status === 'passed' ? 'Passed' : test.status === 'failed' ? 'Failed'
+                          : test.status === 'skipped' ? 'Skipped' : 'Not run'}
                       </span>
                     </div>
                     <p className="text-[11px] text-[#66736F] leading-relaxed">

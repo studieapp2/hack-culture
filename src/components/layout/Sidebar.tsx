@@ -7,7 +7,9 @@ import {
   ShieldCheck,
   History,
   Settings,
-  RefreshCw
+  RefreshCw,
+  Plug,
+  BarChart3
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,9 +28,11 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
 
   const navItems: { id: NavigationPage; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'connect', label: 'Connect', icon: Plug },
     { id: 'fix_code', label: 'Fix Code', icon: Wrench },
     { id: 'verify_answer', label: 'Verify Answer', icon: ShieldCheck },
-    { id: 'runs', label: 'Runs', icon: History }
+    { id: 'runs', label: 'Runs', icon: History },
+    { id: 'benchmarks', label: 'Benchmarks', icon: BarChart3 }
   ];
 
   return (
@@ -123,7 +127,7 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
               {settings.workspaceName}
             </span>
             <span className="text-[10px] text-[#66736F] truncate">
-              developer@patchpilot.internal
+              Local workspace
             </span>
           </div>
         </div>

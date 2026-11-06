@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { RunType, RunStatus } from '../types/domain';
 import { RunStatusBadge } from '../components/shared/StatusBadge';
 import { EmptyState } from '../components/shared/EmptyState';
+import { formatTokens, formatCost } from '../services/usage';
 import {
   History,
   Search,
@@ -205,11 +206,11 @@ export function Runs() {
                     </td>
 
                     <td className="py-3.5 px-4 text-right font-mono tabular-nums text-[#17201D]">
-                      {run.usage.totalTokens.toLocaleString()}
+                      {formatTokens(run.usage.totalTokens)}
                     </td>
 
                     <td className="py-3.5 px-4 text-right font-mono tabular-nums text-[#66736F]">
-                      ${run.usage.estimatedCost.toFixed(4)}
+                      {formatCost(run.usage.estimatedCost)}
                     </td>
 
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
