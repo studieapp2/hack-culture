@@ -43,8 +43,11 @@ test('Tool discovery exposes the strict input contract', async () => {
   const connection = await connected(async () => fixture());
   try {
     const { tools } = await connection.client.listTools();
-    assert.equal(tools.length, 1);
+    assert.equal(tools.length, 2);
     assert.equal(tools[0].name, 'diagnose_api_error');
+    assert.equal(tools[1].name, 'propose_verified_patch');
+    assert.deepEqual(tools[1].inputSchema.required, ['error', 'code']);
+    assert.equal(tools[1].annotations?.destructiveHint, false);
     assert.deepEqual(tools[0].inputSchema.required, ['error', 'code']);
     assert.equal(tools[0].inputSchema.additionalProperties, false);
   } finally { await connection.close(); }
@@ -208,6 +211,35 @@ test('Actual stdio process exits cleanly when host closes stdin', async () => {
     assert.equal(await exited, 0);
     assert.equal(stdout, '');
   } finally { clearTimeout(guard); }
+});
+
+test('Patch tool delegates once to the same engine and preserves insufficient evidence', async () => {
+  let calls = 0;
+  let received: unknown;
+  const result = fixture();
+  const connection = await connected(async value => { calls++; received = value; return result; });
+  try {
+    const response = await connection.client.callTool({ name: 'propose_verified_patch', arguments: input });
+    assert.equal(calls, 1);
+    assert.deepEqual(received, input);
+    assert.deepEqual(data(response), result);
+    assert.equal(data(response).proposedPatch, undefined);
+    const invalid = await connection.client.callTool({
+      name: 'propose_verified_patch', arguments: { ...input, code: ' ' },
+    });
+    assert.equal(invalid.isError, true);
+    assert.equal(calls, 1);
+  } finally { await connection.close(); }
+});
+
+test('Diagnosis and patch tools share the in-flight budget-protection lock', async () => {
+  let settle!: (value: ReturnType<typeof fixture>) => void;
+  const connection = await connected(() => new Promise(resolve => { settle = resolve; }), 10);
+  try {
+    await connection.client.callTool({ name: 'diagnose_api_error', arguments: input });
+    const response = await connection.client.callTool({ name: 'propose_verified_patch', arguments: input });
+    assert.equal((data(response).error as { code: string }).code, 'BUSY');
+  } finally { settle(fixture()); await connection.close(); }
 });
 
 test('Actual published strict engine is called through stdio without provider fixtures', {

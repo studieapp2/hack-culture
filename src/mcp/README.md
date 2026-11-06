@@ -4,6 +4,12 @@ Base: `a74ec2df3587e5c4f4c2dd21f1f10e04647a111d`, published on
 `fix/patchpilot-e2e-20261104`. Implementation branch: `feat/mcp-cursor`.
 Official TypeScript MCP SDK: **1.32.2**, stdio only.
 
+Registered tools: `diagnose_api_error` and `propose_verified_patch`. Both reuse
+the same strict engine, input contract, result validation and single in-flight
+lock. The patch tool never applies a diff and may honestly return no patch.
+`verify_technical_claims` is not implemented yet; it must reuse an approved
+backend verification boundary rather than duplicate provider logic.
+
 ## Published v1 contract and workstream coordination
 
 Knut published contract v1 at `6a521b9`, implemented on backend branch

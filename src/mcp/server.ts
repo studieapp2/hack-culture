@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { BackendUnavailable, diagnoseWithBackend, type DiagnoseEngine } from './backend';
-import { diagnosisInput, diagnosisResult } from './schema';
+import { diagnosisInput, diagnosisResult, type DiagnosisInput } from './schema';
+import { codeTools } from './toolManifest';
 
 const messages = {
   BACKEND_UNAVAILABLE: 'Backend diagnoseApiError is unavailable. Complete and approve the backend entrypoint contract.',
@@ -41,12 +42,7 @@ export function redact(value: unknown): unknown {
 export function createMcpServer(engine: DiagnoseEngine = diagnoseWithBackend, timeoutMs = 95_000) {
   const server = new McpServer({ name: 'patchpilot', version: '0.1.0' });
   let busy = false;
-  server.registerTool('diagnose_api_error', {
-    title: 'Diagnose an API/SDK error',
-    description: 'Analyze actual error and relevant code using PatchPilot. Returns backend evidence and an optional unexecuted patch. Never edits files. Host agent must request human review before consequential changes. Supplied code is sent to configured backend providers; do not submit secrets.',
-    inputSchema: diagnosisInput,
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-  }, async input => {
+  const handleDiagnosis = async (input: DiagnosisInput): Promise<CallToolResult> => {
     if (busy) return failure('BUSY');
     busy = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -77,6 +73,14 @@ export function createMcpServer(engine: DiagnoseEngine = diagnoseWithBackend, ti
     } finally {
       if (timer) clearTimeout(timer);
     }
-  });
+  };
+  for (const tool of codeTools) {
+    server.registerTool(tool.name, {
+      title: tool.title,
+      description: tool.description,
+      inputSchema: diagnosisInput,
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    }, handleDiagnosis);
+  }
   return server;
 }

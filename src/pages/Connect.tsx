@@ -3,6 +3,7 @@ import { Plug, Copy, Check, RefreshCw, ExternalLink } from 'lucide-react';
 import { PageHeader } from '../components/shared/PageHeader';
 import { apiClient } from '../services/apiClient';
 import { cursorMcpConfiguration } from '../services/mcpSetup';
+import { codeTools } from '../mcp/toolManifest';
 
 export function Connect() {
   const [probe, setProbe] = useState<'idle' | 'checking' | 'ready' | 'error'>('idle');
@@ -99,7 +100,12 @@ export function Connect() {
       <section className="bg-white rounded-xl border border-[#E3EAE6] p-5 space-y-3">
         <h2 className="font-semibold text-[#17201D]">3. Verify discovery, then an actual tool call</h2>
         <p className="text-sm text-[#66736F]">
-          Enable the server in Cursor and confirm it discovers <code>diagnose_api_error</code>.
+          Enable the server in Cursor and confirm it discovers{' '}
+          {codeTools.map((tool, index) => (
+            <React.Fragment key={tool.name}>
+              {index > 0 ? ' and ' : ''}<code>{tool.name}</code>
+            </React.Fragment>
+          ))}.
           Ask the agent to send an actual API/SDK error and the relevant source snippet.
           Review source links, uncertainty, usage and any pending patch. Require human review
           before consequential host-agent edits.
