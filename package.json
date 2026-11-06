@@ -18,6 +18,9 @@
     "mcp:start": "node build/mcp/index.js",
     "test:mcp": "tsx --test src/mcp/tests/*.test.ts",
     "test:client": "tsx --test src/services/tests/*.test.tsx",
+    "test:benchmarks": "tsx --test tests/benchmarks/*.test.ts",
+    "benchmark:plan": "tsx tests/benchmarks/cli.ts --plan",
+    "test:all": "bun run mcp:build && bun run test && bun run test:mcp && bun run test:client && bun run test:benchmarks",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

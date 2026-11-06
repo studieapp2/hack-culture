@@ -23,6 +23,27 @@ bun run lint
 bun run build
 ```
 
+The core integration branch also provides:
+
+```sh
+bun run test:all
+bun run benchmark:plan
+```
+
+`test:all` builds the stdio server and runs backend, MCP, client and benchmark
+checks. `benchmark:plan` emits eight **not-run** SDK cases with unknown
+measurements; it does not call a provider or produce live benchmark results.
+The static evaluator checks the installed SDK's TypeScript request types without
+executing generated code. Live benchmarking remains blocked until a real
+routing/spending verifier is available; `--live` must not be treated as working.
+
+MCP exposes `diagnose_api_error`, `propose_verified_patch`, and
+`verify_technical_claims`. Code tools reuse the strict engine. Claim verification
+reuses the local backend API and stores its run in history. Start the backend
+alongside the stdio server; see `src/mcp/README.md` for configuration and the
+Connect page for a portable Cursor configuration. No actual Cursor or live model
+success is implied by passing automated checks.
+
 Regression tests use isolated temporary storage and explicitly mocked provider
 responses. Passing them is not proof that live Tavily/Bifrost credentials work.
 
