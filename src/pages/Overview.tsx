@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { SAMPLE_ERROR_INPUT, SAMPLE_CODE_INPUT } from '../data/demoFixtures';
+import { SAMPLE_ERROR_INPUT, SAMPLE_CODE_INPUT } from '../data/sdkSample';
 import { RunStatusBadge } from '../components/shared/StatusBadge';
 import { formatTokens } from '../services/usage';
 import {
@@ -32,7 +32,7 @@ export function Overview() {
     }
     setDraftError(inputText.trim());
     setDraftCode(inputText === SAMPLE_ERROR_INPUT ? SAMPLE_CODE_INPUT : '');
-    setDraftFileName(inputText === SAMPLE_ERROR_INPUT ? 'demo_client.py' : '');
+    setDraftFileName(inputText === SAMPLE_ERROR_INPUT ? 'sdk_client.ts' : '');
     navigateTo('fix_code');
   };
 

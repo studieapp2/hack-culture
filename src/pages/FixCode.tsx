@@ -5,7 +5,7 @@ import { Run, Claim } from '../types/domain';
 import {
   SAMPLE_ERROR_INPUT,
   SAMPLE_CODE_INPUT
-} from '../data/demoFixtures';
+} from '../data/sdkSample';
 import { RunTimeline } from '../components/runs/RunTimeline';
 import { CodeDiff } from '../components/code/CodeDiff';
 import { ClaimCard } from '../components/verification/ClaimCard';
@@ -73,8 +73,8 @@ export function FixCode() {
     setCodeInput(SAMPLE_CODE_INPUT);
     setDraftError(SAMPLE_ERROR_INPUT);
     setDraftCode(SAMPLE_CODE_INPUT);
-    setFileName('demo_client.py');
-    setDraftFileName('demo_client.py');
+    setFileName('sdk_client.ts');
+    setDraftFileName('sdk_client.ts');
     setValidationError('');
     setServerError(null);
   };

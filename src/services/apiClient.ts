@@ -1,5 +1,6 @@
 import { Run, RunType, RunStatus } from '../types/domain';
 import { normalizeUsage } from './usage';
+import { assertSafeSubmission, safeSourceUrl } from './inputSafety';
 
 export interface BackendHealth {
   status: 'healthy' | 'degraded' | 'unconfigured';
@@ -101,6 +102,7 @@ class ApiClient {
   }
 
   async startFixRun(input: { error: string; code?: string; fileName?: string }): Promise<Run> {
+    assertSafeSubmission(input.error, input.code || '');
     const serverRun = await this.request<any>('/api/fix/analyze', {
       method: 'POST',
       body: JSON.stringify(input)
@@ -109,6 +111,7 @@ class ApiClient {
   }
 
   async verifyAnswer(input: { text: string }): Promise<Run> {
+    assertSafeSubmission(input.text);
     const serverRun = await this.request<any>('/api/verify', {
       method: 'POST',
       body: JSON.stringify(input)
@@ -175,16 +178,16 @@ class ApiClient {
       claims: (s.claims || []).map((c: any) => ({
         id: c.id,
         text: c.originalText || c.text,
-        status: (c.status || '').toLowerCase() === 'verified'
+        status: (c.status || '').toLowerCase() === 'verified' && (c.sources || []).some((source: any) => safeSourceUrl(source.url))
           ? 'verified'
-          : (c.status || '').toLowerCase() === 'outdated'
+          : (c.status || '').toLowerCase() === 'outdated' && (c.sources || []).some((source: any) => safeSourceUrl(source.url))
           ? 'outdated'
           : 'uncertain',
         explanation: c.explanation,
         sources: (c.sources || []).map((src: any) => ({
           id: src.id,
           title: src.title,
-          url: src.url,
+          url: safeSourceUrl(src.url),
           publisher: src.publisher,
           publishedAt: src.publishedAt,
           retrievedAt: src.retrievedAt,

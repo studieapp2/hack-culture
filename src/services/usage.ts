@@ -7,7 +7,7 @@ const amount = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
 const count = (value: unknown): number | null => {
   const number = amount(value);
-  return number !== null && Number.isInteger(number) ? number : null;
+  return number !== null && Number.isSafeInteger(number) ? number : null;
 };
 
 /** Preserve unknown/partial accounting instead of presenting missing data as zero. */

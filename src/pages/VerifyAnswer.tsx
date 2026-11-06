@@ -3,7 +3,7 @@ import { pendingRequestSteps } from '../services/workflowPresentation';
 import { useApp } from '../context/AppContext';
 import { apiClient } from '../services/apiClient';
 import { Run, Claim } from '../types/domain';
-import { SAMPLE_ANSWER_INPUT } from '../data/demoFixtures';
+import { SAMPLE_ANSWER_INPUT } from '../data/sdkSample';
 import { ClaimCard } from '../components/verification/ClaimCard';
 import { EvidencePanel } from '../components/verification/EvidencePanel';
 import { VerificationSummary } from '../components/verification/VerificationSummary';

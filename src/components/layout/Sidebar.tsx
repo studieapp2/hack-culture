@@ -8,7 +8,8 @@ import {
   History,
   Settings,
   RefreshCw,
-  Plug
+  Plug,
+  BarChart3
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,7 +31,8 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
     { id: 'connect', label: 'Connect', icon: Plug },
     { id: 'fix_code', label: 'Fix Code', icon: Wrench },
     { id: 'verify_answer', label: 'Verify Answer', icon: ShieldCheck },
-    { id: 'runs', label: 'Runs', icon: History }
+    { id: 'runs', label: 'Runs', icon: History },
+    { id: 'benchmarks', label: 'Benchmarks', icon: BarChart3 }
   ];
 
   return (

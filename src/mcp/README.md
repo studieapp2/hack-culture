@@ -149,11 +149,13 @@ It invokes the actual engine and expects canonical `MISSING_CONFIGURATION`,
 no sources, zero model calls and no code execution. The path above is a command
 template, not a verified machine configuration.
 
-Recorded check: an isolated copy of published engine `590b916` was invoked
-through the actual stdio process; all 15 MCP tests passed, including this
-unmocked error path. This is MCP-to-engine proof, NOT live provider success.
-Without `PATCHPILOT_TEST_ENGINE_MODULE`, 14 tests run and that integration check
-is explicitly skipped.
+Historical check: an isolated copy of engine `590b916` was invoked through
+stdio with 15 tests passing. The current integration checkout includes the
+published engine directly; its default test run exercises that unmocked
+configuration-error path without an override or skip. Current MCP tests also
+cover all three tools, local REST verification, credential rejection and the
+actual backend's no-evidence result. These are protocol/backend checks, NOT
+live-provider or editor-success proof.
 
 Cursor discovery and a Bifrost + Tavily-backed diagnosis remain untested.
 Next acceptance: approve the shared integration contract/base, configure genuine

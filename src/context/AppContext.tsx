@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Run, AppSettings } from '../types/domain';
 import { apiClient, BackendHealth } from '../services/apiClient';
 
-export type NavigationPage = 'overview' | 'connect' | 'fix_code' | 'verify_answer' | 'runs' | 'settings';
+export type NavigationPage = 'overview' | 'connect' | 'benchmarks' | 'fix_code' | 'verify_answer' | 'runs' | 'settings';
 
 const SETTINGS_KEY = 'patchpilot_client_settings_v2';
 

@@ -15,6 +15,8 @@ export function TopBar({ onOpenMobileMenu }: TopBarProps) {
         return { title: 'Workspace Overview', breadcrumb: 'Platform' };
       case 'connect':
         return { title: 'Connect Your Editor', breadcrumb: 'Integrations' };
+      case 'benchmarks':
+        return { title: 'Benchmark Reports', breadcrumb: 'Evaluation' };
       case 'fix_code':
         return { title: 'Fix Code', breadcrumb: 'Coding Agent' };
       case 'verify_answer':

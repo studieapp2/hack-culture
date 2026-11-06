@@ -64,6 +64,8 @@ test('Malformed token/cost values cannot produce confident numeric accounting', 
     { ...measured, outputTokens: -1 },
     { ...measured, inputTokens: 1.5 },
     { ...measured, totalTokens: 999 },
+    { ...measured, inputTokens: Number.MAX_SAFE_INTEGER + 1,
+      outputTokens: 0, totalTokens: Number.MAX_SAFE_INTEGER + 1 },
   ]) assert.equal(normalizeUsage(value).totalTokens, null);
   assert.equal(normalizeUsage({ ...measured, estimatedCost: Infinity }).estimatedCost, null);
 });
